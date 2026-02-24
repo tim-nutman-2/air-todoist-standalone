@@ -43,6 +43,8 @@ export const AIRTABLE_CONFIG = {
     TASK_DURATION: 'Duration',
     TASK_CALENDAR_EVENT_ID: 'Calendar Event ID',
     TASK_CALENDAR_SYNC_STATUS: 'Calendar Sync Status',
+    TASK_PLANNED_EFFORT: 'Planned Effort',
+    TASK_ACTUAL_EFFORT: 'Actual Effort',
     
     // Projects table fields
     PROJECT_NAME: 'Project Name',
@@ -150,4 +152,5 @@ export const STORAGE_KEYS = {
   SIDEBAR_WIDTH: 'air-todoist-sidebar-width',
   FILTERS: 'air-todoist-filters',
   LAST_SYNC: 'air-todoist-last-sync',
+  ACTIVE_TIMER: 'air-todoist-active-timer',
 };

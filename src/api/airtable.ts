@@ -133,6 +133,10 @@ function mapTaskFromAirtable(record: { id: string; fields: Record<string, any> }
   // Checkbox field
   const syncToCalendar = f[FIELDS.TASK_SYNC_TO_CALENDAR] || f['Sync to Calendar'] || false;
   
+  // Duration/effort fields (stored in seconds in Airtable)
+  const plannedEffort = f[FIELDS.TASK_PLANNED_EFFORT] || f['Planned Effort'] || null;
+  const actualEffort = f[FIELDS.TASK_ACTUAL_EFFORT] || f['Actual Effort'] || null;
+  
   // Debug log
   console.log(`[Map Task] ${record.id}: "${name}" | Status: ${status} | Priority: ${priority} | Project: ${projectId}`);
   
@@ -157,8 +161,8 @@ function mapTaskFromAirtable(record: { id: string; fields: Record<string, any> }
     duration,
     calendarEventId,
     calendarSyncStatus,
-    plannedEffort: null,
-    actualEffort: null,
+    plannedEffort,
+    actualEffort,
   };
   
   return task;
@@ -232,6 +236,8 @@ export async function updateTask(taskId: string, updates: Partial<Task>): Promis
   if (updates.scheduledTime !== undefined) fields[FIELDS.TASK_SCHEDULED_TIME] = updates.scheduledTime ? { name: updates.scheduledTime } : null;
   if (updates.duration !== undefined) fields[FIELDS.TASK_DURATION] = updates.duration ? { name: updates.duration } : null;
   if (updates.calendarSyncStatus !== undefined) fields[FIELDS.TASK_CALENDAR_SYNC_STATUS] = updates.calendarSyncStatus ? { name: updates.calendarSyncStatus } : null;
+  if (updates.plannedEffort !== undefined) fields[FIELDS.TASK_PLANNED_EFFORT] = updates.plannedEffort;
+  if (updates.actualEffort !== undefined) fields[FIELDS.TASK_ACTUAL_EFFORT] = updates.actualEffort;
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response = await rateLimitedFetch<{ id: string; fields: Record<string, any> }>(

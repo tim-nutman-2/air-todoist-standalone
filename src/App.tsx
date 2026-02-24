@@ -16,6 +16,7 @@ import { FiltersManagementView } from './components/FiltersManagementView';
 import { LoadingScreen } from './components/LoadingScreen';
 import { SyncStatusIndicator } from './components/SyncStatusIndicator';
 import { OfflineBanner } from './components/OfflineBanner';
+import { ActiveTimerIndicator } from './components/ActiveTimerIndicator';
 import { getFormattedTodayDate, parseLocalDate } from './utils/dates';
 import { Plus, Sun, Moon, FunnelSimple, Columns, List } from '@phosphor-icons/react';
 import type { Task, Filter, Project } from './types';
@@ -587,6 +588,9 @@ export default function App() {
       
       {/* Toast */}
       <Toast />
+      
+      {/* Active Timer Indicator */}
+      <ActiveTimerIndicator />
     </div>
   );
 }
