@@ -34,7 +34,7 @@ interface AppState {
   syncError: string | null;
   
   // Toast
-  toast: { message: string; type: 'success' | 'error' | 'info' } | null;
+  toast: { message: string; type: 'success' | 'error' | 'info' | 'warning' } | null;
   
   // Confirm modal
   confirmModal: {
@@ -55,7 +55,7 @@ interface AppState {
   toggleShowCompleted: () => void;
   toggleDarkMode: () => void;
   setSidebarWidth: (width: number) => void;
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   hideToast: () => void;
   showConfirm: (options: { title: string; message: string; type?: 'delete' | 'warning' | 'info'; onConfirm: () => void }) => void;
   hideConfirm: () => void;

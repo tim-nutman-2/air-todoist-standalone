@@ -1,5 +1,5 @@
 import { useStore } from '../store';
-import { CheckCircle, XCircle, Info, X } from '@phosphor-icons/react';
+import { CheckCircle, XCircle, Info, Warning, X } from '@phosphor-icons/react';
 
 export function Toast() {
   const { toast, hideToast, isDarkMode } = useStore();
@@ -21,6 +21,11 @@ export function Toast() {
       bg: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
       border: isDarkMode ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe',
       icon: '#3b82f6',
+    },
+    warning: {
+      bg: isDarkMode ? 'rgba(217, 119, 6, 0.15)' : '#fffbeb',
+      border: isDarkMode ? 'rgba(217, 119, 6, 0.3)' : '#fde68a',
+      icon: '#d97706',
     },
   };
   
@@ -47,6 +52,7 @@ export function Toast() {
         {toast.type === 'success' && <CheckCircle size={20} weight="fill" style={{ color: style.icon }} />}
         {toast.type === 'error' && <XCircle size={20} weight="fill" style={{ color: style.icon }} />}
         {toast.type === 'info' && <Info size={20} weight="fill" style={{ color: style.icon }} />}
+        {toast.type === 'warning' && <Warning size={20} weight="fill" style={{ color: style.icon }} />}
         
         <span style={{
           fontSize: 14,

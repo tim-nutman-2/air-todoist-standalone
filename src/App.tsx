@@ -14,8 +14,10 @@ import { ProjectKanbanView } from './components/ProjectKanbanView';
 import { ConfirmModal } from './components/ConfirmModal';
 import { FiltersManagementView } from './components/FiltersManagementView';
 import { LoadingScreen } from './components/LoadingScreen';
+import { SyncStatusIndicator } from './components/SyncStatusIndicator';
+import { OfflineBanner } from './components/OfflineBanner';
 import { getFormattedTodayDate, parseLocalDate } from './utils/dates';
-import { Plus, Sun, Moon, ArrowsClockwise, FunnelSimple, Columns, List } from '@phosphor-icons/react';
+import { Plus, Sun, Moon, FunnelSimple, Columns, List } from '@phosphor-icons/react';
 import type { Task, Filter, Project } from './types';
 
 export default function App() {
@@ -33,9 +35,7 @@ export default function App() {
     isDarkMode,
     toggleDarkMode,
     isLoading,
-    isSyncing,
     fetchAllData,
-    syncPendingChanges,
     confirmModal,
     confirmAction,
     hideConfirm,
@@ -313,6 +313,9 @@ export default function App() {
         overflow: 'hidden',
         backgroundColor: isDarkMode ? '#1f1f1f' : '#ffffff',
       }}>
+        {/* Offline Banner */}
+        <OfflineBanner />
+        
         {/* Header */}
         <header style={{
           padding: '24px 32px',
@@ -460,6 +463,9 @@ export default function App() {
               Show completed
             </label>
             
+            {/* Sync Status Indicator */}
+            <SyncStatusIndicator />
+            
             {/* Theme toggle */}
             <button
               onClick={toggleDarkMode}
@@ -474,27 +480,6 @@ export default function App() {
               title={isDarkMode ? 'Light mode' : 'Dark mode'}
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            
-            {/* Sync button */}
-            <button
-              onClick={() => syncPendingChanges()}
-              disabled={isSyncing}
-              style={{
-                padding: 8,
-                borderRadius: 8,
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: isDarkMode ? '#a0a0a0' : '#808080',
-                cursor: isSyncing ? 'not-allowed' : 'pointer',
-                opacity: isSyncing ? 0.5 : 1,
-              }}
-              title="Sync"
-            >
-              <ArrowsClockwise 
-                size={20} 
-                style={isSyncing ? { animation: 'spin 1s linear infinite' } : undefined}
-              />
             </button>
           </div>
         </header>
