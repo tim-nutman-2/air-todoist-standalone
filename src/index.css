@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* Base styles */
+:root {
+  --color-primary: #d1453b;
+  --color-primary-hover: #b93d35;
+  --color-primary-light: #fee9e9;
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #202020;
+  --color-text-secondary: #808080;
+  --color-text-muted: #b0b0b0;
+  --color-border: #e0e0e0;
+  --color-divider: #f0f0f0;
+}
+
+.dark {
+  --color-background: #1f1f1f;
+  --color-surface: #282828;
+  --color-text: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #606060;
+  --color-border: #3a3a3a;
+  --color-divider: #333333;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animations */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b0;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+/* Form elements */
+input[type="text"],
+input[type="date"],
+textarea,
+select {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+
+/* Focus styles */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+a, button {
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
