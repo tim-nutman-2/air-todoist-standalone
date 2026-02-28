@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Trash, Play, Pause, Stop, Clock } from '@phosphor-icons/react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, Trash, Play, Pause, Stop, Clock, Plus, CheckCircle, Circle } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { STATUS_OPTIONS, PRIORITY_OPTIONS, SCHEDULED_TIME_OPTIONS, DURATION_OPTIONS, STORAGE_KEYS } from '../utils/constants';
 import { formatDateForInput } from '../utils/dates';
@@ -8,9 +8,10 @@ import type { Task } from '../types';
 interface EditTaskPanelProps {
   task: Task | null;
   onClose: () => void;
+  onAddSubtask?: (parentTask: Task) => void;
 }
 
-export function EditTaskPanel({ task, onClose }: EditTaskPanelProps) {
+export function EditTaskPanel({ task, onClose, onAddSubtask }: EditTaskPanelProps) {
   const { projects, tags, tasks, updateTask, deleteTask, isDarkMode, showConfirm } = useStore();
   
   const [name, setName] = useState('');
@@ -49,6 +50,16 @@ export function EditTaskPanel({ task, onClose }: EditTaskPanelProps) {
     danger: '#ef4444',
   };
   
+  // Get subtasks of this task
+  const subtasks = useMemo(() => {
+    if (!task) return [];
+    return tasks.filter(t => t.parentTaskId === task.id);
+  }, [task, tasks]);
+  
+  const completedSubtasksCount = useMemo(() => {
+    return subtasks.filter(t => t.status === '✅ Done').length;
+  }, [subtasks]);
+  
   // Load task data when task changes
   useEffect(() => {
     if (task) {
@@ -56,7 +67,7 @@ export function EditTaskPanel({ task, onClose }: EditTaskPanelProps) {
       setProjectId(task.projectId);
       setDueDate(formatDateForInput(task.dueDate));
       setStartDate(formatDateForInput(task.startDate));
-      setPriority(task.priority || '📌 Everything Else');
+      setPriority(task.priority || '');
       setStatus(task.status || '📥 Inbox');
       setSelectedTagIds(task.tagIds || []);
       setParentTaskId(task.parentTaskId);
@@ -468,6 +479,7 @@ export function EditTaskPanel({ task, onClose }: EditTaskPanelProps) {
                 outline: 'none',
               }}
             >
+              <option value="">No priority</option>
               {PRIORITY_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
@@ -900,6 +912,91 @@ export function EditTaskPanel({ task, onClose }: EditTaskPanelProps) {
             )}
           </div>
         </div>
+        
+        {/* Subtasks Section */}
+        {task && !task.parentTaskId && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: colors.textSecondary }}>
+                Subtasks {subtasks.length > 0 && `(${completedSubtasksCount}/${subtasks.length})`}
+              </label>
+              {onAddSubtask && (
+                <button
+                  type="button"
+                  onClick={() => onAddSubtask(task)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: colors.primary,
+                    cursor: 'pointer',
+                    borderRadius: 4,
+                  }}
+                >
+                  <Plus size={14} />
+                  Add subtask
+                </button>
+              )}
+            </div>
+            {subtasks.length > 0 ? (
+              <div style={{
+                border: `1px solid ${colors.border}`,
+                borderRadius: 8,
+                overflow: 'hidden',
+              }}>
+                {subtasks.map((subtask, index) => {
+                  const isDone = subtask.status === '✅ Done';
+                  return (
+                    <div
+                      key={subtask.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        borderBottom: index < subtasks.length - 1 ? `1px solid ${colors.border}` : 'none',
+                        backgroundColor: isDarkMode ? '#242424' : '#fafafa',
+                      }}
+                    >
+                      {isDone ? (
+                        <CheckCircle size={18} weight="fill" style={{ color: '#22c55e', flexShrink: 0 }} />
+                      ) : (
+                        <Circle size={18} style={{ color: colors.textSecondary, flexShrink: 0 }} />
+                      )}
+                      <span style={{
+                        fontSize: 13,
+                        color: isDone ? colors.textSecondary : colors.text,
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {subtask.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{
+                padding: '16px',
+                border: `1px dashed ${colors.border}`,
+                borderRadius: 8,
+                textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 13, color: colors.textSecondary, margin: 0 }}>
+                  No subtasks yet
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Notes */}
         <div style={{ marginBottom: 20 }}>

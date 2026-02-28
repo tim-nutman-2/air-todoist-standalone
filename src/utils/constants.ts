@@ -99,11 +99,23 @@ export const STATUS_OPTIONS = [
   { value: '⏸️ Waiting', label: '⏸️ Waiting' },
 ];
 
-// Priority options
+// Priority options (matching actual Airtable single select options)
 export const PRIORITY_OPTIONS = [
-  { value: '🔥 Top 5', label: '🔥 Top 5' },
-  { value: '📌 Everything Else', label: '📌 Everything Else' },
+  { value: '4 (highest)', label: '4 (highest)', color: '#dc2626', level: 4 },
+  { value: '3 (urgent)', label: '3 (urgent)', color: '#f59e0b', level: 3 },
+  { value: '2 (standard)', label: '2 (standard)', color: '#6b7280', level: 2 },
+  { value: '1 (low)', label: '1 (low)', color: '#3b82f6', level: 1 },
 ];
+
+// Helper to get priority config by name
+export const getPriorityConfig = (priorityName: string | null | undefined) => {
+  return PRIORITY_OPTIONS.find(p => p.value === priorityName) || null;
+};
+
+// Helper to check if priority is high (4 or 3)
+export const isHighPriority = (priorityName: string | null | undefined) => {
+  return priorityName === '4 (highest)' || priorityName === '3 (urgent)';
+};
 
 // Calendar sync options
 export const SCHEDULED_TIME_OPTIONS = [

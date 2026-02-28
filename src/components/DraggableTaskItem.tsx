@@ -10,9 +10,10 @@ interface DraggableTaskItemProps {
   level?: number;
   showProject?: boolean;
   onEditTask?: (task: Task) => void;
+  onAddSubtask?: (parentTask: Task) => void;
 }
 
-export function DraggableTaskItem({ task, level = 0, showProject = true, onEditTask }: DraggableTaskItemProps) {
+export function DraggableTaskItem({ task, level = 0, showProject = true, onEditTask, onAddSubtask }: DraggableTaskItemProps) {
   const { isDarkMode } = useStore();
   
   const {
@@ -69,6 +70,7 @@ export function DraggableTaskItem({ task, level = 0, showProject = true, onEditT
         level={level}
         showProject={showProject}
         onEditTask={onEditTask}
+        onAddSubtask={onAddSubtask}
       />
     </div>
   );

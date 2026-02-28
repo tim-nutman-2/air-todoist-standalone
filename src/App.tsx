@@ -50,6 +50,7 @@ export default function App() {
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
   const [showKanban, setShowKanban] = useState(false);
   const [showProjectDashboard, setShowProjectDashboard] = useState(true);
+  const [addSubtaskParent, setAddSubtaskParent] = useState<Task | null>(null);
   
   // Fetch data on mount
   useEffect(() => {
@@ -68,6 +69,11 @@ export default function App() {
   // Handle task edit
   const handleEditTask = useCallback((task: Task) => {
     setEditingTask(task);
+  }, []);
+  
+  // Handle add subtask
+  const handleAddSubtask = useCallback((parentTask: Task) => {
+    setAddSubtaskParent(parentTask);
   }, []);
   
   // Handle project selection from dashboard
@@ -513,6 +519,7 @@ export default function App() {
               groupBy={groupBy}
               emptyMessage={`No tasks in ${title.toLowerCase()}`}
               emptyStateType={emptyStateType}
+              onAddSubtask={handleAddSubtask}
               onEditTask={handleEditTask}
               onAddTask={() => setShowAddModal(true)}
               enableDragDrop={true}
@@ -548,15 +555,17 @@ export default function App() {
       
       {/* Add Task Modal */}
       <AddTaskModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        isOpen={showAddModal || !!addSubtaskParent}
+        onClose={() => { setShowAddModal(false); setAddSubtaskParent(null); }}
         defaultProjectId={currentView === 'project' ? selectedProjectId : null}
+        parentTask={addSubtaskParent}
       />
       
       {/* Edit Task Panel */}
       <EditTaskPanel
         task={editingTask}
         onClose={() => setEditingTask(null)}
+        onAddSubtask={handleAddSubtask}
       />
       
       {/* Filter Modal */}

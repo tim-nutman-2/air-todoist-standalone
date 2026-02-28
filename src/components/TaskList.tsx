@@ -31,6 +31,7 @@ interface TaskListProps {
   emptyStateType?: EmptyStateType;
   onEditTask?: (task: Task) => void;
   onAddTask?: () => void;
+  onAddSubtask?: (parentTask: Task) => void;
   enableDragDrop?: boolean;
 }
 
@@ -41,6 +42,7 @@ export function TaskList({
   emptyStateType = 'inbox',
   onEditTask,
   onAddTask,
+  onAddSubtask,
   enableDragDrop = true,
 }: TaskListProps) {
   const { showCompleted, projects, sections, isDarkMode, updateTask } = useStore();
@@ -261,6 +263,7 @@ export function TaskList({
           task={task}
           showProject={showProjectBadge}
           onEditTask={onEditTask}
+          onAddSubtask={onAddSubtask}
         />
       );
     }
@@ -270,6 +273,7 @@ export function TaskList({
         task={task}
         showProject={showProjectBadge}
         onEditTask={onEditTask}
+        onAddSubtask={onAddSubtask}
       />
     );
   };

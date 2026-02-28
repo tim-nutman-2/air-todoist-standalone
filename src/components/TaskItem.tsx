@@ -11,10 +11,11 @@ import {
   Copy,
   TreeStructure,
   Play,
+  Plus,
 } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { getDueDateInfo, formatDateForInput, parseLocalDate } from '../utils/dates';
-import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR } from '../utils/constants';
+import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, isHighPriority as checkHighPriority, getPriorityConfig } from '../utils/constants';
 import type { Task } from '../types';
 
 interface TaskItemProps {
@@ -22,9 +23,10 @@ interface TaskItemProps {
   level?: number;
   showProject?: boolean;
   onEditTask?: (task: Task) => void;
+  onAddSubtask?: (parentTask: Task) => void;
 }
 
-export function TaskItem({ task, level = 0, showProject = true, onEditTask }: TaskItemProps) {
+export function TaskItem({ task, level = 0, showProject = true, onEditTask, onAddSubtask }: TaskItemProps) {
   const {
     tasks,
     projects,
@@ -116,7 +118,9 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
   const startDateInfo = getStartDateInfo();
   
   const isCompleted = task.status === '✅ Done';
-  const isTopPriority = task.priority === '🔥 Top 5';
+  // Check for high priority (4 highest or 3 urgent)
+  const isTopPriority = checkHighPriority(task.priority);
+  const priorityConfig = getPriorityConfig(task.priority);
   
   const handleComplete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -189,6 +193,11 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
     if (onEditTask) onEditTask(task);
   };
   
+  const handleAddSubtask = () => {
+    setShowMoreMenu(false);
+    if (onAddSubtask) onAddSubtask(task);
+  };
+  
   return (
     <>
       <div
@@ -207,7 +216,7 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Priority indicator */}
-        {isTopPriority && !isCompleted && (
+        {priorityConfig && !isCompleted && (
           <div
             style={{
               position: 'absolute',
@@ -216,7 +225,7 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
               transform: 'translateY(-50%)',
               width: 3,
               height: 24,
-              backgroundColor: colors.primary,
+              backgroundColor: priorityConfig.color,
               borderRadius: '0 2px 2px 0',
             }}
           />
@@ -264,9 +273,7 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
             cursor: 'pointer',
             color: isCompleted 
               ? '#22c55e' 
-              : isTopPriority 
-                ? colors.primary 
-                : colors.checkboxBorder,
+              : priorityConfig?.color || colors.checkboxBorder,
           }}
         >
           {isCompleted ? (
@@ -550,6 +557,28 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
                   zIndex: 100,
                   overflow: 'hidden',
                 }}>
+                  {/* Add subtask - only for root level tasks */}
+                  {level === 0 && onAddSubtask && (
+                    <button
+                      onClick={handleAddSubtask}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: 13,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: colors.text,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <Plus size={16} />
+                      Add subtask
+                    </button>
+                  )}
                   <button
                     onClick={handleDuplicate}
                     style={{
@@ -623,6 +652,7 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask }: Ta
           level={level + 1}
           showProject={showProject}
           onEditTask={onEditTask}
+          onAddSubtask={onAddSubtask}
         />
       ))}
     </>

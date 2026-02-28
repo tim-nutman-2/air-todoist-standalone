@@ -1,28 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../utils/constants';
+import type { Task } from '../types';
 
 interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultProjectId?: string | null;
   defaultParentTaskId?: string | null;
+  parentTask?: Task | null;
 }
 
-export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentTaskId }: AddTaskModalProps) {
+export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentTaskId, parentTask }: AddTaskModalProps) {
   const { projects, tags, tasks, createTask, isDarkMode } = useStore();
+  
+  // Determine if this is a subtask modal
+  const isSubtaskMode = !!parentTask;
+  const effectiveParentTaskId = parentTask?.id || defaultParentTaskId || null;
   
   const [name, setName] = useState('');
   const [projectId, setProjectId] = useState<string | null>(defaultProjectId || null);
   const [dueDate, setDueDate] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [priority, setPriority] = useState<string>('📌 Everything Else');
+  const [priority, setPriority] = useState<string>('');
   const [status, setStatus] = useState<string>('📥 Inbox');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [parentTaskId, setParentTaskId] = useState<string | null>(defaultParentTaskId || null);
+  const [parentTaskId, setParentTaskId] = useState<string | null>(effectiveParentTaskId);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Update parentTaskId when parentTask prop changes
+  useEffect(() => {
+    if (parentTask) {
+      setParentTaskId(parentTask.id);
+      // Also inherit project from parent task if not already set
+      if (parentTask.projectId && !projectId) {
+        setProjectId(parentTask.projectId);
+      }
+    }
+  }, [parentTask]);
   
   const colors = {
     bg: isDarkMode ? '#1f1f1f' : '#ffffff',
@@ -61,10 +78,10 @@ export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentT
       setProjectId(defaultProjectId || null);
       setDueDate('');
       setStartDate('');
-      setPriority('📌 Everything Else');
+      setPriority('');
       setStatus('📥 Inbox');
       setSelectedTagIds([]);
-      setParentTaskId(defaultParentTaskId || null);
+      setParentTaskId(null);
       setNotes('');
       
       onClose();
@@ -113,9 +130,16 @@ export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentT
           padding: '16px 20px',
           borderBottom: `1px solid ${colors.border}`,
         }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: colors.text, margin: 0 }}>
-            Add Task
-          </h2>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: colors.text, margin: 0 }}>
+              {isSubtaskMode ? 'Add Subtask' : 'Add Task'}
+            </h2>
+            {isSubtaskMode && parentTask && (
+              <p style={{ fontSize: 12, color: colors.textSecondary, margin: '4px 0 0 0' }}>
+                Under: {parentTask.name}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -247,6 +271,7 @@ export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentT
                   outline: 'none',
                 }}
               >
+                <option value="">No priority</option>
                 {PRIORITY_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -391,7 +416,7 @@ export function AddTaskModal({ isOpen, onClose, defaultProjectId, defaultParentT
                 opacity: isSubmitting || !name.trim() ? 0.5 : 1,
               }}
             >
-              {isSubmitting ? 'Adding...' : 'Add Task'}
+              {isSubmitting ? 'Adding...' : (isSubtaskMode ? 'Add Subtask' : 'Add Task')}
             </button>
           </div>
         </form>
