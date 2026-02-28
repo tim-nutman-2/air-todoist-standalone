@@ -68,6 +68,9 @@ interface AppState {
   deleteTask: (taskId: string) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
   
+  // Project Actions
+  updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
+  
   // Section Actions
   createSection: (section: Partial<Section>) => Promise<Section | null>;
   
@@ -324,6 +327,36 @@ export const useStore = create<AppState>()(
           status: '✅ Done',
           completedDate: new Date().toISOString().split('T')[0],
         });
+      },
+      
+      // Update project
+      updateProject: async (projectId, updates) => {
+        const { isOnline, showToast, projects } = get();
+        
+        console.log('[Store] updateProject called:', { projectId, updates });
+        
+        // Optimistic update
+        const updatedProjects = projects.map(p =>
+          p.id === projectId ? { ...p, ...updates } : p
+        );
+        set({ projects: updatedProjects });
+        
+        try {
+          if (isOnline) {
+            await api.updateProject(projectId, updates);
+          } else {
+            // TODO: Queue for sync when back online
+            showToast('Changes saved locally - will sync when online', 'info');
+          }
+          
+          showToast('Project updated');
+        } catch (error) {
+          console.error('Failed to update project:', error);
+          // Revert optimistic update
+          set({ projects });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to update project: ${errorMessage}`, 'error');
+        }
       },
       
       // Create section

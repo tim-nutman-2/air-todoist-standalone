@@ -629,15 +629,48 @@ export function EditTaskPanel({ task, onClose, onAddSubtask }: EditTaskPanelProp
             </div>
           </div>
           
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={syncToCalendar}
-              onChange={(e) => setSyncToCalendar(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: colors.primary }}
-            />
-            <span style={{ fontSize: 13, color: colors.text }}>Sync to Calendar</span>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={syncToCalendar}
+                onChange={(e) => setSyncToCalendar(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: colors.primary }}
+              />
+              <span style={{ fontSize: 13, color: colors.text }}>Sync to Calendar</span>
+            </label>
+            
+            {/* Sync Status Indicator */}
+            {task.calendarSyncStatus && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 8px',
+                fontSize: 12,
+                borderRadius: 4,
+                backgroundColor: task.calendarSyncStatus === 'Synced'
+                  ? isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7'
+                  : task.calendarSyncStatus === 'Needs sync'
+                    ? isDarkMode ? 'rgba(234, 179, 8, 0.2)' : '#fef9c3'
+                    : task.calendarSyncStatus === 'Sync error'
+                      ? isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2'
+                      : isDarkMode ? 'rgba(107, 114, 128, 0.2)' : '#f3f4f6',
+                color: task.calendarSyncStatus === 'Synced'
+                  ? isDarkMode ? '#4ade80' : '#16a34a'
+                  : task.calendarSyncStatus === 'Needs sync'
+                    ? isDarkMode ? '#facc15' : '#ca8a04'
+                    : task.calendarSyncStatus === 'Sync error'
+                      ? isDarkMode ? '#f87171' : '#dc2626'
+                      : isDarkMode ? '#9ca3af' : '#6b7280',
+              }}>
+                {task.calendarSyncStatus === 'Synced' && '✓ '}
+                {task.calendarSyncStatus === 'Needs sync' && '↻ '}
+                {task.calendarSyncStatus === 'Sync error' && '! '}
+                {task.calendarSyncStatus}
+              </span>
+            )}
+          </div>
         </div>
         
         {/* Effort Tracking Section */}

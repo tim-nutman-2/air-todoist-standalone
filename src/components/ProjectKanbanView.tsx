@@ -110,6 +110,15 @@ export function ProjectKanbanView({ projectId, onEditTask, onAddSection }: Proje
       if (task && task.sectionId !== newSectionId) {
         await updateTask(taskId, { sectionId: newSectionId });
       }
+      return;
+    }
+    
+    // Check if dropped on another task card
+    const activeTask = tasks.find(t => t.id === taskId);
+    const overTask = projectTasks.find(t => t.id === overId);
+    
+    if (activeTask && overTask && activeTask.sectionId !== overTask.sectionId) {
+      await updateTask(taskId, { sectionId: overTask.sectionId });
     }
   };
   
@@ -406,6 +415,41 @@ function KanbanCard({ task, colors, isDarkMode, onClick, isDragging }: KanbanCar
           }}>
             <CalendarBlank size={10} />
             {dueDateInfo.text}
+          </span>
+        )}
+        
+        {/* Calendar Sync Badge */}
+        {(task.syncToCalendar || task.calendarSyncStatus) && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 2,
+              padding: '2px 5px',
+              fontSize: 10,
+              borderRadius: 4,
+              backgroundColor: task.calendarSyncStatus === 'Synced'
+                ? isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7'
+                : task.calendarSyncStatus === 'Needs sync'
+                  ? isDarkMode ? 'rgba(234, 179, 8, 0.2)' : '#fef9c3'
+                  : task.calendarSyncStatus === 'Sync error'
+                    ? isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2'
+                    : isDarkMode ? 'rgba(107, 114, 128, 0.2)' : '#f3f4f6',
+              color: task.calendarSyncStatus === 'Synced'
+                ? isDarkMode ? '#4ade80' : '#16a34a'
+                : task.calendarSyncStatus === 'Needs sync'
+                  ? isDarkMode ? '#facc15' : '#ca8a04'
+                  : task.calendarSyncStatus === 'Sync error'
+                    ? isDarkMode ? '#f87171' : '#dc2626'
+                    : isDarkMode ? '#9ca3af' : '#6b7280',
+            }}
+            title={`Calendar: ${task.scheduledTime || 'No time'} · ${task.duration || 'No duration'} · ${task.calendarSyncStatus || 'Pending'}`}
+          >
+            <CalendarBlank size={9} />
+            {task.calendarSyncStatus === 'Synced' && '✓'}
+            {task.calendarSyncStatus === 'Needs sync' && '↻'}
+            {task.calendarSyncStatus === 'Sync error' && '!'}
+            {!task.calendarSyncStatus && '○'}
           </span>
         )}
         

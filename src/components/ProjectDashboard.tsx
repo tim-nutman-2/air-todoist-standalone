@@ -5,7 +5,7 @@ import {
   Circle, 
   Clock, 
   CalendarBlank,
-  ArrowRight,
+  Info,
 } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR } from '../utils/constants';
@@ -18,7 +18,9 @@ interface ProjectDashboardProps {
 }
 
 export function ProjectDashboard({ onSelectProject, onViewProjectDetails }: ProjectDashboardProps) {
-  const { projects, tasks, isDarkMode } = useStore();
+  const projects = useStore(state => state.projects);
+  const tasks = useStore(state => state.tasks);
+  const isDarkMode = useStore(state => state.isDarkMode);
   
   const colors = {
     bg: isDarkMode ? '#1f1f1f' : '#ffffff',
@@ -139,7 +141,7 @@ export function ProjectDashboard({ onSelectProject, onViewProjectDetails }: Proj
             }}
             title="View details"
           >
-            <ArrowRight size={18} />
+            <Info size={18} />
           </button>
         </div>
         

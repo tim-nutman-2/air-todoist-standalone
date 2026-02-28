@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { TaskList } from './components/TaskList';
 import { Toast } from './components/Toast';
 import { AddTaskModal } from './components/AddTaskModal';
+import { AddSectionModal } from './components/AddSectionModal';
 import { EditTaskPanel } from './components/EditTaskPanel';
 import { ScheduleView } from './components/ScheduleView';
 import { FilterModal } from './components/FilterModal';
@@ -44,6 +45,7 @@ export default function App() {
   
   // Modal/Panel state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [editingFilter, setEditingFilter] = useState<Filter | null>(null);
@@ -128,7 +130,8 @@ export default function App() {
         const inboxTasks = tasks.filter(t => {
           if (t.status === '✅ Done' && !showCompleted) return false;
           if (t.parentTaskId) return false;
-          return t.status === '📥 Inbox';
+          // Match Sidebar logic: tasks with Inbox status OR tasks without a project
+          return t.status === '📥 Inbox' || (!t.projectId && t.status !== '✅ Done');
         });
         
         return {
@@ -363,52 +366,95 @@ export default function App() {
             <SearchBar onSelectTask={handleEditTask} />
             
             {/* View toggle (List/Kanban) - Only show in project view */}
-            {currentView === 'project' && (
-              <div style={{
-                display: 'flex',
-                backgroundColor: isDarkMode ? '#333333' : '#f0f0f0',
-                borderRadius: 8,
-                padding: 2,
-              }}>
+            {currentView === 'project' && selectedProjectId && (
+              <>
                 <button
-                  onClick={() => setShowKanban(false)}
+                  onClick={() => {
+                    const project = projects.find(p => p.id === selectedProjectId);
+                    if (project) setViewingProject(project);
+                  }}
                   style={{
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    border: 'none',
-                    backgroundColor: !showKanban ? (isDarkMode ? '#555' : '#fff') : 'transparent',
-                    color: isDarkMode ? '#fff' : '#333',
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 4,
-                    fontSize: 12,
+                    gap: 6,
+                    padding: '6px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 8,
+                    border: `1px solid ${isDarkMode ? '#3a3a3a' : '#e0e0e0'}`,
+                    backgroundColor: 'transparent',
+                    color: isDarkMode ? '#a0a0a0' : '#606060',
+                    cursor: 'pointer',
                   }}
-                  title="List view"
+                  title="Project settings"
                 >
-                  <List size={16} />
-                  List
+                  Settings
                 </button>
                 <button
-                  onClick={() => setShowKanban(true)}
+                  onClick={() => setShowAddSectionModal(true)}
                   style={{
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    border: 'none',
-                    backgroundColor: showKanban ? (isDarkMode ? '#555' : '#fff') : 'transparent',
-                    color: isDarkMode ? '#fff' : '#333',
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 4,
-                    fontSize: 12,
+                    gap: 6,
+                    padding: '6px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 8,
+                    border: `1px solid ${isDarkMode ? '#3a3a3a' : '#e0e0e0'}`,
+                    backgroundColor: 'transparent',
+                    color: isDarkMode ? '#a0a0a0' : '#606060',
+                    cursor: 'pointer',
                   }}
-                  title="Kanban view (by section)"
                 >
-                  <Columns size={16} />
-                  Board
+                  <Plus size={14} />
+                  Section
                 </button>
-              </div>
+                <div style={{
+                  display: 'flex',
+                  backgroundColor: isDarkMode ? '#333333' : '#f0f0f0',
+                  borderRadius: 8,
+                  padding: 2,
+                }}>
+                  <button
+                    onClick={() => setShowKanban(false)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      backgroundColor: !showKanban ? (isDarkMode ? '#555' : '#fff') : 'transparent',
+                      color: isDarkMode ? '#fff' : '#333',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12,
+                    }}
+                    title="List view"
+                  >
+                    <List size={16} />
+                    List
+                  </button>
+                  <button
+                    onClick={() => setShowKanban(true)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      backgroundColor: showKanban ? (isDarkMode ? '#555' : '#fff') : 'transparent',
+                      color: isDarkMode ? '#fff' : '#333',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12,
+                    }}
+                    title="Kanban view (by section)"
+                  >
+                    <Columns size={16} />
+                    Board
+                  </button>
+                </div>
+              </>
             )}
             
             {/* Dashboard toggle (only show on projects view) */}
@@ -505,7 +551,7 @@ export default function App() {
             <ProjectKanbanView
               projectId={selectedProjectId}
               onEditTask={handleEditTask}
-              onAddSection={() => {/* TODO: Add section modal */}}
+              onAddSection={() => setShowAddSectionModal(true)}
             />
           ) : currentView === 'projects' && showProjectDashboard ? (
             <ProjectDashboard
@@ -523,6 +569,7 @@ export default function App() {
               onEditTask={handleEditTask}
               onAddTask={() => setShowAddModal(true)}
               enableDragDrop={true}
+              projectId={currentView === 'project' ? selectedProjectId : null}
             />
           )}
         </div>
@@ -574,6 +621,15 @@ export default function App() {
         onClose={() => { setShowFilterModal(false); setEditingFilter(null); }}
         editingFilter={editingFilter}
       />
+      
+      {/* Add Section Modal */}
+      {selectedProjectId && (
+        <AddSectionModal
+          isOpen={showAddSectionModal}
+          onClose={() => setShowAddSectionModal(false)}
+          projectId={selectedProjectId}
+        />
+      )}
       
       {/* Project Details Panel */}
       <ProjectDetailsPanel

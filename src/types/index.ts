@@ -91,8 +91,10 @@ export type TaskStatus =
   | '⏸️ Waiting';
 
 export type TaskPriority = 
-  | '🔥 Top 5'
-  | '📌 Everything Else';
+  | '4 (highest)'
+  | '3 (urgent)'
+  | '2 (standard)'
+  | '1 (low)';
 
 export type ProjectStatus = 
   | 'Active'

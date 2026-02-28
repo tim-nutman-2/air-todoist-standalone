@@ -398,6 +398,46 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask, onAd
               </span>
             )}
             
+            {/* Calendar Sync Badge - show if sync is enabled or has a sync status */}
+            {(task.syncToCalendar || task.calendarSyncStatus) && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '2px 6px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  backgroundColor: task.calendarSyncStatus === 'Synced'
+                    ? isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7'
+                    : task.calendarSyncStatus === 'Needs sync'
+                      ? isDarkMode ? 'rgba(234, 179, 8, 0.2)' : '#fef9c3'
+                      : task.calendarSyncStatus === 'Sync error'
+                        ? isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2'
+                        : isDarkMode ? 'rgba(107, 114, 128, 0.2)' : '#f3f4f6',
+                  color: task.calendarSyncStatus === 'Synced'
+                    ? isDarkMode ? '#4ade80' : '#16a34a'
+                    : task.calendarSyncStatus === 'Needs sync'
+                      ? isDarkMode ? '#facc15' : '#ca8a04'
+                      : task.calendarSyncStatus === 'Sync error'
+                        ? isDarkMode ? '#f87171' : '#dc2626'
+                        : isDarkMode ? '#9ca3af' : '#6b7280',
+                }}
+                title={`Calendar: ${task.scheduledTime || 'No time'} · ${task.duration || 'No duration'} · ${task.calendarSyncStatus || 'Pending'}`}
+              >
+                <CalendarBlank size={11} />
+                {task.calendarSyncStatus === 'Synced' && '✓'}
+                {task.calendarSyncStatus === 'Needs sync' && '↻'}
+                {task.calendarSyncStatus === 'Sync error' && '!'}
+                {!task.calendarSyncStatus && '○'}
+                {task.scheduledTime && (
+                  <span style={{ maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {task.scheduledTime.replace(' AM', 'a').replace(' PM', 'p')}
+                  </span>
+                )}
+              </span>
+            )}
+            
             {/* Tags */}
             {taskTags.slice(0, 2).map((tag) => (
               <span

@@ -1,4 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   CalendarBlank,
   Tray,
@@ -9,10 +25,45 @@ import {
   Circle,
   CaretDown,
   CaretRight,
+  DotsSixVertical,
 } from '@phosphor-icons/react';
 import { useStore } from '../store';
-import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, TAG_COLORS } from '../utils/constants';
-import type { ViewType } from '../types';
+import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, TAG_COLORS, STORAGE_KEYS } from '../utils/constants';
+import type { ViewType, Project, Tag as TagType, Filter } from '../types';
+
+// Storage keys for sidebar order preferences
+const ORDER_KEYS = {
+  projects: 'air-todoist-project-order',
+  tags: 'air-todoist-tag-order',
+  filters: 'air-todoist-filter-order',
+};
+
+// Load order from localStorage
+function loadOrder(key: string): string[] {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save order to localStorage
+function saveOrder(key: string, order: string[]) {
+  localStorage.setItem(key, JSON.stringify(order));
+}
+
+// Sort items by custom order
+function sortByOrder<T extends { id: string }>(items: T[], order: string[]): T[] {
+  if (order.length === 0) return items;
+  
+  const orderMap = new Map(order.map((id, index) => [id, index]));
+  return [...items].sort((a, b) => {
+    const aIndex = orderMap.get(a.id) ?? Infinity;
+    const bIndex = orderMap.get(b.id) ?? Infinity;
+    return aIndex - bIndex;
+  });
+}
 
 interface NavItem {
   id: ViewType;
@@ -50,6 +101,21 @@ export function Sidebar() {
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   
+  // Order state
+  const [projectOrder, setProjectOrder] = useState<string[]>(() => loadOrder(ORDER_KEYS.projects));
+  const [tagOrder, setTagOrder] = useState<string[]>(() => loadOrder(ORDER_KEYS.tags));
+  const [filterOrder, setFilterOrder] = useState<string[]>(() => loadOrder(ORDER_KEYS.filters));
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  
   // Colors based on dark mode
   const colors = {
     bg: isDarkMode ? '#1f1f1f' : '#ffffff',
@@ -60,6 +126,7 @@ export function Sidebar() {
     textSecondary: isDarkMode ? '#a0a0a0' : '#808080',
     textMuted: isDarkMode ? '#606060' : '#b0b0b0',
     primary: '#d1453b',
+    dragHandle: isDarkMode ? '#505050' : '#c0c0c0',
   };
   
   // Calculate counts
@@ -98,6 +165,11 @@ export function Sidebar() {
     { id: 'schedule', label: 'Schedule', icon: <CalendarBlank size={18} weight="fill" /> },
   ];
   
+  // Sorted items
+  const sortedProjects = useMemo(() => sortByOrder(projects, projectOrder), [projects, projectOrder]);
+  const sortedTags = useMemo(() => sortByOrder(tags, tagOrder), [tags, tagOrder]);
+  const sortedFilters = useMemo(() => sortByOrder(filters, filterOrder), [filters, filterOrder]);
+  
   // Handle resize
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -135,6 +207,52 @@ export function Sidebar() {
   const isViewActive = (viewId: ViewType) => {
     if (viewId === 'project' || viewId === 'tag' || viewId === 'filter') return false;
     return currentView === viewId && !selectedProjectId && !selectedTagId && !selectedFilterId;
+  };
+  
+  // Handle drag end for reordering
+  const handleProjectDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedProjects.findIndex(p => p.id === active.id);
+      const newIndex = sortedProjects.findIndex(p => p.id === over.id);
+      
+      const newOrder = sortedProjects.map(p => p.id);
+      newOrder.splice(oldIndex, 1);
+      newOrder.splice(newIndex, 0, active.id as string);
+      
+      setProjectOrder(newOrder);
+      saveOrder(ORDER_KEYS.projects, newOrder);
+    }
+  };
+  
+  const handleTagDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedTags.findIndex(t => t.id === active.id);
+      const newIndex = sortedTags.findIndex(t => t.id === over.id);
+      
+      const newOrder = sortedTags.map(t => t.id);
+      newOrder.splice(oldIndex, 1);
+      newOrder.splice(newIndex, 0, active.id as string);
+      
+      setTagOrder(newOrder);
+      saveOrder(ORDER_KEYS.tags, newOrder);
+    }
+  };
+  
+  const handleFilterDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedFilters.findIndex(f => f.id === active.id);
+      const newIndex = sortedFilters.findIndex(f => f.id === over.id);
+      
+      const newOrder = sortedFilters.map(f => f.id);
+      newOrder.splice(oldIndex, 1);
+      newOrder.splice(newIndex, 0, active.id as string);
+      
+      setFilterOrder(newOrder);
+      saveOrder(ORDER_KEYS.filters, newOrder);
+    }
   };
   
   return (
@@ -243,43 +361,33 @@ export function Sidebar() {
               Saved Filters
             </button>
             {filtersExpanded && (
-              <div style={{ marginTop: 4 }}>
-                {filters.map((filter) => {
-                  const isActive = currentView === 'filter' && selectedFilterId === filter.id;
-                  return (
-                    <button
-                      key={filter.id}
-                      onClick={() => setSelectedFilter(filter.id)}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        border: 'none',
-                        backgroundColor: isActive ? colors.bgActive : 'transparent',
-                        color: isActive ? colors.primary : colors.text,
-                        fontWeight: isActive ? 500 : 400,
-                        fontSize: 14,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <Circle size={8} weight="fill" style={{ color: filter.color }} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {filter.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleFilterDragEnd}
+              >
+                <SortableContext
+                  items={sortedFilters.map(f => f.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div style={{ marginTop: 4 }}>
+                    {sortedFilters.map((filter) => (
+                      <SortableFilterItem
+                        key={filter.id}
+                        filter={filter}
+                        isActive={currentView === 'filter' && selectedFilterId === filter.id}
+                        colors={colors}
+                        onClick={() => setSelectedFilter(filter.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         )}
         
         {/* Projects Section */}
-        {(() => { console.log('[Sidebar] Projects array:', projects.length, projects); return null; })()}
         <div style={{ padding: '0 8px', marginBottom: 16 }}>
           <button
             onClick={() => setProjectsExpanded(!projectsExpanded)}
@@ -303,48 +411,38 @@ export function Sidebar() {
             Projects
           </button>
           {projectsExpanded && (
-            <div style={{ marginTop: 4 }}>
-              {/* Show all projects for debugging - was: p.status === 'Active' */}
-              {projects.length === 0 && (
-                <p style={{ padding: '8px 12px', fontSize: 12, color: colors.textMuted }}>No projects found</p>
-              )}
-              {projects.map((project) => {
-                const taskCount = tasks.filter(t => 
-                  t.projectId === project.id && t.status !== '✅ Done'
-                ).length;
-                const isActive = currentView === 'project' && selectedProjectId === project.id;
-                
-                return (
-                  <button
-                    key={project.id}
-                    onClick={() => setSelectedProject(project.id)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      backgroundColor: isActive ? colors.bgActive : 'transparent',
-                      color: isActive ? colors.primary : colors.text,
-                      fontWeight: isActive ? 500 : 400,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Circle size={8} weight="fill" style={{ color: getProjectColor(project.id) }} />
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {project.name}
-                    </span>
-                    {taskCount > 0 && (
-                      <span style={{ fontSize: 12, color: colors.textSecondary }}>{taskCount}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleProjectDragEnd}
+            >
+              <SortableContext
+                items={sortedProjects.map(p => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div style={{ marginTop: 4 }}>
+                  {projects.length === 0 && (
+                    <p style={{ padding: '8px 12px', fontSize: 12, color: colors.textMuted }}>No projects found</p>
+                  )}
+                  {sortedProjects.map((project) => {
+                    const taskCount = tasks.filter(t => 
+                      t.projectId === project.id && t.status !== '✅ Done'
+                    ).length;
+                    return (
+                      <SortableProjectItem
+                        key={project.id}
+                        project={project}
+                        taskCount={taskCount}
+                        isActive={currentView === 'project' && selectedProjectId === project.id}
+                        colors={colors}
+                        projectColor={getProjectColor(project.id)}
+                        onClick={() => setSelectedProject(project.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
         
@@ -372,44 +470,34 @@ export function Sidebar() {
             Tags
           </button>
           {tagsExpanded && (
-            <div style={{ marginTop: 4 }}>
-              {tags.map((tag) => {
-                const taskCount = tasks.filter(t => 
-                  t.tagIds.includes(tag.id) && t.status !== '✅ Done'
-                ).length;
-                const isActive = currentView === 'tag' && selectedTagId === tag.id;
-                
-                return (
-                  <button
-                    key={tag.id}
-                    onClick={() => setSelectedTag(tag.id)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      backgroundColor: isActive ? colors.bgActive : 'transparent',
-                      color: isActive ? colors.primary : colors.text,
-                      fontWeight: isActive ? 500 : 400,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Tag size={14} style={{ color: TAG_COLORS[tag.type || ''] || '#808080' }} />
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {tag.name}
-                    </span>
-                    {taskCount > 0 && (
-                      <span style={{ fontSize: 12, color: colors.textSecondary }}>{taskCount}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleTagDragEnd}
+            >
+              <SortableContext
+                items={sortedTags.map(t => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div style={{ marginTop: 4 }}>
+                  {sortedTags.map((tag) => {
+                    const taskCount = tasks.filter(t => 
+                      t.tagIds.includes(tag.id) && t.status !== '✅ Done'
+                    ).length;
+                    return (
+                      <SortableTagItem
+                        key={tag.id}
+                        tag={tag}
+                        taskCount={taskCount}
+                        isActive={currentView === 'tag' && selectedTagId === tag.id}
+                        colors={colors}
+                        onClick={() => setSelectedTag(tag.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </nav>
@@ -480,6 +568,246 @@ export function Sidebar() {
           if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
         }}
       />
+    </div>
+  );
+}
+
+// Sortable Project Item
+interface SortableProjectItemProps {
+  project: Project;
+  taskCount: number;
+  isActive: boolean;
+  colors: Record<string, string>;
+  projectColor: string;
+  onClick: () => void;
+}
+
+function SortableProjectItem({ project, taskCount, isActive, colors, projectColor, onClick }: SortableProjectItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={{ ...style, position: 'relative' }}>
+      <div
+        {...attributes}
+        {...listeners}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'grab',
+          color: colors.dragHandle,
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          zIndex: 5,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+      >
+        <DotsSixVertical size={12} weight="bold" />
+      </div>
+      <button
+        onClick={onClick}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: 'none',
+          backgroundColor: isActive ? colors.bgActive : 'transparent',
+          color: isActive ? colors.primary : colors.text,
+          fontWeight: isActive ? 500 : 400,
+          fontSize: 14,
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <Circle size={8} weight="fill" style={{ color: projectColor }} />
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {project.name}
+        </span>
+        {taskCount > 0 && (
+          <span style={{ fontSize: 12, color: colors.textSecondary }}>{taskCount}</span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// Sortable Tag Item
+interface SortableTagItemProps {
+  tag: TagType;
+  taskCount: number;
+  isActive: boolean;
+  colors: Record<string, string>;
+  onClick: () => void;
+}
+
+function SortableTagItem({ tag, taskCount, isActive, colors, onClick }: SortableTagItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tag.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={{ ...style, position: 'relative' }}>
+      <div
+        {...attributes}
+        {...listeners}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'grab',
+          color: colors.dragHandle,
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          zIndex: 5,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+      >
+        <DotsSixVertical size={12} weight="bold" />
+      </div>
+      <button
+        onClick={onClick}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: 'none',
+          backgroundColor: isActive ? colors.bgActive : 'transparent',
+          color: isActive ? colors.primary : colors.text,
+          fontWeight: isActive ? 500 : 400,
+          fontSize: 14,
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <Tag size={14} style={{ color: TAG_COLORS[tag.type || ''] || '#808080' }} />
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {tag.name}
+        </span>
+        {taskCount > 0 && (
+          <span style={{ fontSize: 12, color: colors.textSecondary }}>{taskCount}</span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// Sortable Filter Item
+interface SortableFilterItemProps {
+  filter: Filter;
+  isActive: boolean;
+  colors: Record<string, string>;
+  onClick: () => void;
+}
+
+function SortableFilterItem({ filter, isActive, colors, onClick }: SortableFilterItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: filter.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={{ ...style, position: 'relative' }}>
+      <div
+        {...attributes}
+        {...listeners}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'grab',
+          color: colors.dragHandle,
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          zIndex: 5,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+      >
+        <DotsSixVertical size={12} weight="bold" />
+      </div>
+      <button
+        onClick={onClick}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: 'none',
+          backgroundColor: isActive ? colors.bgActive : 'transparent',
+          color: isActive ? colors.primary : colors.text,
+          fontWeight: isActive ? 500 : 400,
+          fontSize: 14,
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <Circle size={8} weight="fill" style={{ color: filter.color }} />
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {filter.name}
+        </span>
+      </button>
     </div>
   );
 }

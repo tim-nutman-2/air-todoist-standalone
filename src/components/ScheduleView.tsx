@@ -396,9 +396,26 @@ function ScheduleTaskCard({ task, colors, isDarkMode, onClick, compact }: Schedu
       }}>
         {task.name}
       </div>
-      {!compact && task.scheduledTime && (
-        <div style={{ fontSize: 10, color: colors.textSecondary, marginTop: 2 }}>
-          {task.scheduledTime} {task.duration && `• ${task.duration}`}
+      {!compact && (task.scheduledTime || task.calendarSyncStatus) && (
+        <div style={{ fontSize: 10, color: colors.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+          {task.scheduledTime && (
+            <span>{task.scheduledTime} {task.duration && `• ${task.duration}`}</span>
+          )}
+          {task.calendarSyncStatus && (
+            <span style={{
+              color: task.calendarSyncStatus === 'Synced'
+                ? isDarkMode ? '#4ade80' : '#16a34a'
+                : task.calendarSyncStatus === 'Needs sync'
+                  ? isDarkMode ? '#facc15' : '#ca8a04'
+                  : task.calendarSyncStatus === 'Sync error'
+                    ? isDarkMode ? '#f87171' : '#dc2626'
+                    : colors.textSecondary,
+            }}>
+              {task.calendarSyncStatus === 'Synced' && '✓'}
+              {task.calendarSyncStatus === 'Needs sync' && '↻'}
+              {task.calendarSyncStatus === 'Sync error' && '!'}
+            </span>
+          )}
         </div>
       )}
     </div>

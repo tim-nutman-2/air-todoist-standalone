@@ -6,6 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import {
@@ -33,6 +34,7 @@ interface TaskListProps {
   onAddTask?: () => void;
   onAddSubtask?: (parentTask: Task) => void;
   enableDragDrop?: boolean;
+  projectId?: string | null;
 }
 
 export function TaskList({
@@ -44,6 +46,7 @@ export function TaskList({
   onAddTask,
   onAddSubtask,
   enableDragDrop = true,
+  projectId,
 }: TaskListProps) {
   const { showCompleted, projects, sections, isDarkMode, updateTask } = useStore();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -180,34 +183,40 @@ export function TaskList({
         grouped[key].push(task);
       });
       
-      // Sort sections by order
-      const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+      // Filter sections to only those in the current project, then sort by order
+      const projectSections = sections
+        .filter(s => s.projectId === projectId)
+        .sort((a, b) => a.order - b.order);
       
       const groups: { key: string; title: string | null; tasks: Task[]; color: string | null; icon: React.ReactNode | null }[] = [];
       
-      // Add "No Section" first if it has tasks
-      if (grouped['no-section']?.length > 0) {
-        groups.push({ key: 'no-section', title: 'No Section', tasks: grouped['no-section'], color: null, icon: null });
+      // Add "No Section" first (always show if there are unsectioned tasks OR no sections exist)
+      if (grouped['no-section']?.length > 0 || projectSections.length === 0) {
+        groups.push({ 
+          key: 'no-section', 
+          title: projectSections.length > 0 ? 'No Section' : null, 
+          tasks: grouped['no-section'] || [], 
+          color: null, 
+          icon: null 
+        });
       }
       
-      // Add other sections
-      sortedSections.forEach(section => {
-        if (grouped[section.id]?.length > 0) {
-          groups.push({
-            key: section.id,
-            title: section.name,
-            tasks: grouped[section.id],
-            color: section.color || null,
-            icon: null,
-          });
-        }
+      // Add all project sections (even empty ones so they're visible)
+      projectSections.forEach(section => {
+        groups.push({
+          key: section.id,
+          title: section.name,
+          tasks: grouped[section.id] || [],
+          color: section.color || null,
+          icon: null,
+        });
       });
       
       return groups;
     }
     
     return [{ key: 'all', title: null, tasks: visibleTasks, color: null, icon: null }];
-  }, [visibleTasks, groupBy, projects, sections]);
+  }, [visibleTasks, groupBy, projects, sections, projectId]);
   
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
@@ -225,11 +234,33 @@ export function TaskList({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (over && active.id !== over.id) {
-      const activeTask = visibleTasks.find(t => t.id === active.id);
+    if (!over) return;
+    
+    const activeTask = visibleTasks.find(t => t.id === active.id);
+    if (!activeTask) return;
+    
+    // Check if dropped on a section header (droppable zone)
+    const overId = over.id as string;
+    if (overId.startsWith('section-drop-')) {
+      const targetSectionId = overId.replace('section-drop-', '');
+      const newSectionId = targetSectionId === 'no-section' ? null : targetSectionId;
+      
+      if (activeTask.sectionId !== newSectionId) {
+        await updateTask(activeTask.id, { sectionId: newSectionId });
+      }
+      return;
+    }
+    
+    // Dropped on another task
+    if (active.id !== over.id) {
       const overTask = visibleTasks.find(t => t.id === over.id);
       
-      if (activeTask && overTask) {
+      if (overTask) {
+        // If dragging to a different section, update the section
+        if (groupBy === 'section' && activeTask.sectionId !== overTask.sectionId) {
+          await updateTask(activeTask.id, { sectionId: overTask.sectionId });
+        }
+        
         // If dragging to a different project group, update the project
         if (groupBy === 'project' && activeTask.projectId !== overTask.projectId) {
           await updateTask(activeTask.id, { projectId: overTask.projectId });
@@ -246,7 +277,11 @@ export function TaskList({
     }
   };
   
-  if (visibleTasks.length === 0) {
+  // Only show empty state if there are no tasks AND we're not in section view with sections
+  // (we want to show empty sections in project view)
+  const hasProjectSections = groupBy === 'section' && sections.some(s => s.projectId === projectId);
+  
+  if (visibleTasks.length === 0 && !hasProjectSections) {
     return (
       <EmptyState
         type={emptyStateType}
@@ -318,21 +353,67 @@ export function TaskList({
                   fontSize: 13,
                   fontWeight: 600,
                   color: group.color || colors.text,
+                  flex: 1,
                 }}>
                   {group.title}
+                </span>
+                <span style={{
+                  fontSize: 12,
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  backgroundColor: isDarkMode ? '#3a3a3a' : '#e5e5e5',
+                  color: colors.textSecondary,
+                }}>
+                  {group.tasks.length}
                 </span>
               </button>
             )}
             {!isCollapsed && (
               enableDragDrop ? (
-                <SortableContext
-                  items={group.tasks.map(t => t.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {group.tasks.map((task) => renderTaskItem(task, showProjectBadge))}
-                </SortableContext>
+                groupBy === 'section' ? (
+                  <DroppableSectionZone sectionId={group.key} isDarkMode={isDarkMode}>
+                    <SortableContext
+                      items={group.tasks.map(t => t.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {group.tasks.length > 0 ? (
+                        group.tasks.map((task) => renderTaskItem(task, showProjectBadge))
+                      ) : group.title ? (
+                        <div style={{
+                          padding: '16px 32px',
+                          color: colors.textMuted,
+                          fontSize: 13,
+                          fontStyle: 'italic',
+                          borderBottom: `1px solid ${isDarkMode ? '#2a2a2a' : '#f5f5f5'}`,
+                          minHeight: 48,
+                        }}>
+                          Drop tasks here
+                        </div>
+                      ) : null}
+                    </SortableContext>
+                  </DroppableSectionZone>
+                ) : (
+                  <SortableContext
+                    items={group.tasks.map(t => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {group.tasks.map((task) => renderTaskItem(task, showProjectBadge))}
+                  </SortableContext>
+                )
               ) : (
-                group.tasks.map((task) => renderTaskItem(task, showProjectBadge))
+                group.tasks.length > 0 ? (
+                  group.tasks.map((task) => renderTaskItem(task, showProjectBadge))
+                ) : groupBy === 'section' && group.title ? (
+                  <div style={{
+                    padding: '16px 32px',
+                    color: colors.textMuted,
+                    fontSize: 13,
+                    fontStyle: 'italic',
+                    borderBottom: `1px solid ${isDarkMode ? '#2a2a2a' : '#f5f5f5'}`,
+                  }}>
+                    No tasks in this section
+                  </div>
+                ) : null
               )
             )}
           </div>
@@ -354,4 +435,30 @@ export function TaskList({
   }
   
   return content;
+}
+
+// Droppable zone for sections (allows dropping tasks into empty sections)
+interface DroppableSectionZoneProps {
+  sectionId: string;
+  children: React.ReactNode;
+  isDarkMode: boolean;
+}
+
+function DroppableSectionZone({ sectionId, children, isDarkMode }: DroppableSectionZoneProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `section-drop-${sectionId}`,
+  });
+  
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        backgroundColor: isOver ? (isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)') : 'transparent',
+        borderRadius: isOver ? 4 : 0,
+        transition: 'background-color 0.2s',
+      }}
+    >
+      {children}
+    </div>
+  );
 }
