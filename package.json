@@ -1,11 +1,22 @@
 {
-  "name": "air_todoist_standalone",
+  "name": "air-todoist",
+  "productName": "Air Todoist",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
+  "description": "A beautiful task management app powered by Airtable",
+  "author": "Tim Nutman",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && npm run electron:dev\"",
+    "electron:dev": "NODE_ENV=development electron .",
     "build": "tsc -b && vite build",
+    "build:electron": "npm run build && npm run electron:build",
+    "electron:build": "tsc -p tsconfig.electron.json",
+    "package": "npm run build:electron && electron-builder",
+    "package:mac": "npm run build:electron && electron-builder --mac",
+    "package:win": "npm run build:electron && electron-builder --win",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -27,6 +38,9 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.24",
+    "concurrently": "^9.1.2",
+    "electron": "^36.2.1",
+    "electron-builder": "^26.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -35,6 +49,52 @@
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.airtodoist.app",
+    "productName": "Air Todoist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*.js",
+      "assets/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "dmg": {
+      "title": "Air Todoist",
+      "backgroundColor": "#1f1f1f"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

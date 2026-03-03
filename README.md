@@ -1,6 +1,6 @@
 # Air Todoist Standalone
 
-A standalone React application for the Air Todoist task management system. This is a progressive web app (PWA) that provides offline-first functionality with Airtable as the backend.
+A standalone React application for the Air Todoist task management system. Available as both a web app and a native desktop application (via Electron).
 
 ## Features
 
@@ -10,6 +10,7 @@ A standalone React application for the Air Todoist task management system. This 
 - **Subtask Support**: Hierarchical tasks with unlimited nesting
 - **Project Colors**: Visual organization with color-coded projects
 - **Dark Mode**: Toggle between light and dark themes
+- **Desktop App**: Native macOS/Windows app with system tray and global shortcuts
 
 ## Setup
 
@@ -34,21 +35,57 @@ npm install
    VITE_AIRTABLE_API_KEY=pat_your_token_here
    ```
 
-### 3. Start Development Server
+## Development
+
+### Web Development (Browser)
 
 ```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+Opens at `http://localhost:5173` with hot reload.
 
-## Building for Production
+### Desktop Development (Electron)
+
+```bash
+npm run dev:electron
+```
+
+Opens the app in an Electron window with hot reload. Same development experience as web.
+
+## Building
+
+### Web Build
 
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist` directory.
+Built files go to `dist/` directory.
+
+### Desktop App Package
+
+```bash
+# Build for current platform
+npm run package
+
+# Build for macOS
+npm run package:mac
+
+# Build for Windows
+npm run package:win
+```
+
+Installers are created in `release/` directory.
+
+## Desktop App Features
+
+- **System Tray**: Quick access from menu bar
+- **Global Shortcuts**:
+  - `Cmd/Ctrl + Shift + A`: Quick add task (works even when app is hidden)
+  - `Cmd/Ctrl + Shift + T`: Toggle app visibility
+- **Native Notifications**: Task reminders and sync status
+- **Background Running**: Minimizes to tray instead of quitting
 
 ## Architecture
 

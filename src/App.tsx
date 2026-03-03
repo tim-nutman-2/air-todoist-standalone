@@ -20,6 +20,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { ActiveTimerIndicator } from './components/ActiveTimerIndicator';
 import { getFormattedTodayDate, parseLocalDate } from './utils/dates';
 import { getFilteredTasks } from './utils/filters';
+import { useElectron } from './hooks/useElectron';
 import { Plus, Sun, Moon, FunnelSimple, Columns, List } from '@phosphor-icons/react';
 import type { Task, Filter, Project } from './types';
 
@@ -59,6 +60,13 @@ export default function App() {
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+  
+  // Electron integration - handle global shortcuts from main process
+  const syncPendingChanges = useStore(state => state.syncPendingChanges);
+  useElectron({
+    onQuickAddTask: useCallback(() => setShowAddModal(true), []),
+    onSyncNow: syncPendingChanges,
+  });
   
   // Apply dark mode to html element
   useEffect(() => {
