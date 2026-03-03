@@ -16,7 +16,7 @@ const FILTER_COLORS = [
 ];
 
 export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps) {
-  const { projects, tags, saveFilter, deleteFilter, isDarkMode, showConfirm } = useStore();
+  const { projects, tags, sections, saveFilter, deleteFilter, isDarkMode, showConfirm } = useStore();
   
   const [name, setName] = useState('');
   const [color, setColor] = useState(FILTER_COLORS[0]);
@@ -24,6 +24,7 @@ export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
   const [dueDateRange, setDueDateRange] = useState<FilterCriteria['dueDateRange']>(undefined);
   
   const colors = {
@@ -45,6 +46,7 @@ export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps
       setSelectedPriorities(editingFilter.criteria.priority || []);
       setSelectedProjectIds(editingFilter.criteria.projectIds || []);
       setSelectedTagIds(editingFilter.criteria.tagIds || []);
+      setSelectedSectionIds(editingFilter.criteria.sectionIds || []);
       setDueDateRange(editingFilter.criteria.dueDateRange);
     } else {
       // Reset form
@@ -54,6 +56,7 @@ export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps
       setSelectedPriorities([]);
       setSelectedProjectIds([]);
       setSelectedTagIds([]);
+      setSelectedSectionIds([]);
       setDueDateRange(undefined);
     }
   }, [editingFilter, isOpen]);
@@ -70,6 +73,7 @@ export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps
         priority: selectedPriorities.length > 0 ? selectedPriorities : undefined,
         projectIds: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
         tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+        sectionIds: selectedSectionIds.length > 0 ? selectedSectionIds : undefined,
         dueDateRange,
       },
       createdAt: editingFilter?.createdAt || new Date().toISOString(),
@@ -346,6 +350,44 @@ export function FilterModal({ isOpen, onClose, editingFilter }: FilterModalProps
               })}
             </div>
           </div>
+          
+          {/* Sections Filter */}
+          {sections.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: colors.textSecondary, marginBottom: 6 }}>
+                Sections
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {sections.map(section => {
+                  const isSelected = selectedSectionIds.includes(section.id);
+                  const project = projects.find(p => p.id === section.projectId);
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => toggleArrayItem(selectedSectionIds, section.id, setSelectedSectionIds)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 13,
+                        borderRadius: 16,
+                        border: `1px solid ${isSelected ? colors.primary : colors.border}`,
+                        backgroundColor: isSelected ? (isDarkMode ? 'rgba(209, 69, 59, 0.2)' : '#fee9e9') : 'transparent',
+                        color: isSelected ? colors.primary : colors.text,
+                        cursor: 'pointer',
+                      }}
+                      title={project ? `Project: ${project.name}` : undefined}
+                    >
+                      {section.name}
+                      {project && (
+                        <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.7 }}>
+                          ({project.name.slice(0, 12)}{project.name.length > 12 ? '...' : ''})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>

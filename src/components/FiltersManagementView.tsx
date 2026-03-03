@@ -1,5 +1,6 @@
 import { FunnelSimple, PencilSimple, Circle, Plus } from '@phosphor-icons/react';
 import { useStore } from '../store';
+import { getFilterTaskCount } from '../utils/filters';
 import type { Filter } from '../types';
 
 interface FiltersManagementViewProps {
@@ -20,24 +21,6 @@ export function FiltersManagementView({ onSelectFilter, onEditFilter, onCreateFi
     textSecondary: isDarkMode ? '#a0a0a0' : '#6b7280',
     textMuted: isDarkMode ? '#606060' : '#9ca3af',
     primary: '#d1453b',
-  };
-  
-  // Calculate task count for each filter
-  const getFilterTaskCount = (filter: Filter) => {
-    return tasks.filter(t => {
-      if (t.status === '✅ Done' && !showCompleted) return false;
-      if (t.parentTaskId) return false;
-      
-      const c = filter.criteria;
-      if (!c) return true;
-      
-      if (c.status?.length && !c.status.includes(t.status || '')) return false;
-      if (c.priority?.length && !c.priority.includes(t.priority || '')) return false;
-      if (c.projectIds?.length && !c.projectIds.includes(t.projectId || '')) return false;
-      if (c.tagIds?.length && !t.tagIds.some(id => c.tagIds?.includes(id))) return false;
-      
-      return true;
-    }).length;
   };
   
   if (filters.length === 0) {
@@ -99,7 +82,7 @@ export function FiltersManagementView({ onSelectFilter, onEditFilter, onCreateFi
       
       <div style={{ display: 'grid', gap: 12 }}>
         {filters.map(filter => {
-          const taskCount = getFilterTaskCount(filter);
+          const taskCount = getFilterTaskCount(tasks, filter.criteria, { showCompleted });
           
           return (
             <div

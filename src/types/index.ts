@@ -78,6 +78,7 @@ export interface FilterCriteria {
   priority?: string[];
   projectIds?: string[];
   tagIds?: string[];
+  sectionIds?: string[];
   dueDateRange?: 'overdue' | 'today' | 'tomorrow' | 'this_week' | 'no_date';
 }
 

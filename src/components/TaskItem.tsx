@@ -476,6 +476,25 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask, onAd
               </span>
             )}
             
+            {/* Offline sync status indicator */}
+            {task.id.startsWith('local_') && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '2px 6px',
+                  fontSize: 11,
+                  borderRadius: 4,
+                  backgroundColor: isDarkMode ? 'rgba(234, 179, 8, 0.2)' : '#fef9c3',
+                  color: isDarkMode ? '#facc15' : '#ca8a04',
+                }}
+                title="Created offline - will sync when online"
+              >
+                ↻ Pending
+              </span>
+            )}
+            
             {/* Subtask count */}
             {hasSubtasks && (
               <span style={{ fontSize: 11, color: colors.textSecondary }}>

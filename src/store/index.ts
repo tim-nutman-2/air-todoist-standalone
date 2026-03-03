@@ -69,10 +69,19 @@ interface AppState {
   completeTask: (taskId: string) => Promise<void>;
   
   // Project Actions
+  createProject: (project: Partial<Project>) => Promise<Project | null>;
   updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
+  
+  // Tag Actions
+  createTag: (tag: Partial<Tag>) => Promise<Tag | null>;
+  updateTag: (tagId: string, updates: Partial<Tag>) => Promise<void>;
+  deleteTag: (tagId: string) => Promise<void>;
   
   // Section Actions
   createSection: (section: Partial<Section>) => Promise<Section | null>;
+  updateSection: (sectionId: string, updates: Partial<Section>) => Promise<void>;
+  deleteSection: (sectionId: string) => Promise<void>;
   
   // Filter Actions
   saveFilter: (filter: Filter) => Promise<void>;
@@ -329,11 +338,37 @@ export const useStore = create<AppState>()(
         });
       },
       
+      // Create project
+      createProject: async (projectData) => {
+        const { isOnline, showToast, projects } = get();
+        
+        try {
+          let newProject: Project;
+          
+          if (isOnline) {
+            newProject = await api.createProject(projectData);
+          } else {
+            // Create locally and queue for sync
+            const localProject = await db.createProjectLocally(projectData);
+            newProject = localProject;
+            showToast('Project created locally - will sync when online', 'info');
+          }
+          
+          set({ projects: [...projects, newProject] });
+          showToast(`Project "${newProject.name}" created`);
+          
+          return newProject;
+        } catch (error) {
+          console.error('Failed to create project:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to create project: ${errorMessage}`, 'error');
+          return null;
+        }
+      },
+      
       // Update project
       updateProject: async (projectId, updates) => {
         const { isOnline, showToast, projects } = get();
-        
-        console.log('[Store] updateProject called:', { projectId, updates });
         
         // Optimistic update
         const updatedProjects = projects.map(p =>
@@ -345,8 +380,10 @@ export const useStore = create<AppState>()(
           if (isOnline) {
             await api.updateProject(projectId, updates);
           } else {
-            // TODO: Queue for sync when back online
+            // Save locally and queue for sync
+            await db.updateProjectLocally(projectId, updates);
             showToast('Changes saved locally - will sync when online', 'info');
+            return;
           }
           
           showToast('Project updated');
@@ -356,6 +393,105 @@ export const useStore = create<AppState>()(
           set({ projects });
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           showToast(`Failed to update project: ${errorMessage}`, 'error');
+        }
+      },
+      
+      // Delete project
+      deleteProject: async (projectId) => {
+        const { isOnline, showToast, projects } = get();
+        
+        // Optimistic update
+        const updatedProjects = projects.filter(p => p.id !== projectId);
+        set({ projects: updatedProjects });
+        
+        try {
+          if (isOnline) {
+            await api.deleteProject(projectId);
+          } else {
+            await db.deleteProjectLocally(projectId);
+            showToast('Project will be deleted when online', 'info');
+            return;
+          }
+          
+          showToast('Project deleted');
+        } catch (error) {
+          console.error('Failed to delete project:', error);
+          // Revert optimistic update
+          set({ projects });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to delete project: ${errorMessage}`, 'error');
+        }
+      },
+      
+      // Create tag
+      createTag: async (tagData) => {
+        const { isOnline, showToast, tags } = get();
+        
+        if (!isOnline) {
+          showToast('Cannot create tags while offline', 'error');
+          return null;
+        }
+        
+        try {
+          const newTag = await api.createTag(tagData);
+          set({ tags: [...tags, newTag] });
+          showToast(`Tag "${newTag.name}" created`);
+          return newTag;
+        } catch (error) {
+          console.error('Failed to create tag:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to create tag: ${errorMessage}`, 'error');
+          return null;
+        }
+      },
+      
+      // Update tag
+      updateTag: async (tagId, updates) => {
+        const { isOnline, showToast, tags } = get();
+        
+        if (!isOnline) {
+          showToast('Cannot update tags while offline', 'error');
+          return;
+        }
+        
+        // Optimistic update
+        const updatedTags = tags.map(t =>
+          t.id === tagId ? { ...t, ...updates } : t
+        );
+        set({ tags: updatedTags });
+        
+        try {
+          await api.updateTag(tagId, updates);
+          showToast('Tag updated');
+        } catch (error) {
+          console.error('Failed to update tag:', error);
+          set({ tags });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to update tag: ${errorMessage}`, 'error');
+        }
+      },
+      
+      // Delete tag
+      deleteTag: async (tagId) => {
+        const { isOnline, showToast, tags } = get();
+        
+        if (!isOnline) {
+          showToast('Cannot delete tags while offline', 'error');
+          return;
+        }
+        
+        // Optimistic update
+        const updatedTags = tags.filter(t => t.id !== tagId);
+        set({ tags: updatedTags });
+        
+        try {
+          await api.deleteTag(tagId);
+          showToast('Tag deleted');
+        } catch (error) {
+          console.error('Failed to delete tag:', error);
+          set({ tags });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to delete tag: ${errorMessage}`, 'error');
         }
       },
       
@@ -369,9 +505,10 @@ export const useStore = create<AppState>()(
           if (isOnline) {
             newSection = await api.createSection(sectionData);
           } else {
-            // TODO: Create section locally
-            showToast('Cannot create sections while offline', 'error');
-            return null;
+            // Create locally and queue for sync
+            const localSection = await db.createSectionLocally(sectionData);
+            newSection = localSection;
+            showToast('Section created locally - will sync when online', 'info');
           }
           
           set({ sections: [...sections, newSection] });
@@ -380,8 +517,63 @@ export const useStore = create<AppState>()(
           return newSection;
         } catch (error) {
           console.error('Failed to create section:', error);
-          showToast('Failed to create section', 'error');
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to create section: ${errorMessage}`, 'error');
           return null;
+        }
+      },
+      
+      // Update section
+      updateSection: async (sectionId, updates) => {
+        const { isOnline, showToast, sections } = get();
+        
+        // Optimistic update
+        const updatedSections = sections.map(s =>
+          s.id === sectionId ? { ...s, ...updates } : s
+        );
+        set({ sections: updatedSections });
+        
+        try {
+          if (isOnline) {
+            await api.updateSection(sectionId, updates);
+          } else {
+            await db.updateSectionLocally(sectionId, updates);
+            showToast('Changes saved locally - will sync when online', 'info');
+            return;
+          }
+          
+          showToast('Section updated');
+        } catch (error) {
+          console.error('Failed to update section:', error);
+          set({ sections });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to update section: ${errorMessage}`, 'error');
+        }
+      },
+      
+      // Delete section
+      deleteSection: async (sectionId) => {
+        const { isOnline, showToast, sections } = get();
+        
+        // Optimistic update
+        const updatedSections = sections.filter(s => s.id !== sectionId);
+        set({ sections: updatedSections });
+        
+        try {
+          if (isOnline) {
+            await api.deleteSection(sectionId);
+          } else {
+            await db.deleteSectionLocally(sectionId);
+            showToast('Section will be deleted when online', 'info');
+            return;
+          }
+          
+          showToast('Section deleted');
+        } catch (error) {
+          console.error('Failed to delete section:', error);
+          set({ sections });
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          showToast(`Failed to delete section: ${errorMessage}`, 'error');
         }
       },
       
@@ -414,7 +606,7 @@ export const useStore = create<AppState>()(
       
       // Sync pending changes
       syncPendingChanges: async () => {
-        const { isOnline, showToast, fetchAllData } = get();
+        const { isOnline, showToast, fetchAllData, tasks, projects, sections } = get();
         
         if (!isOnline) {
           showToast('Cannot sync while offline', 'info');
@@ -423,53 +615,114 @@ export const useStore = create<AppState>()(
         
         set({ isSyncing: true });
         
+        // Track ID mappings for local -> real IDs
+        const idMappings: Record<string, string> = {};
+        
         try {
           const pendingItems = await db.getPendingSyncItems();
+          let successCount = 0;
+          let errorCount = 0;
           
           for (const item of pendingItems) {
             try {
+              // If recordId is a local ID that was already mapped, use the real ID
+              let recordId = item.recordId;
+              if (recordId.startsWith('local_') && idMappings[recordId]) {
+                recordId = idMappings[recordId];
+              }
+              
               switch (item.type) {
                 case 'CREATE':
                   if (item.table === 'tasks') {
                     const newTask = await api.createTask(item.payload as Partial<Task>);
-                    // Update local record with real ID
-                    await db.db.tasks.delete(item.localId!);
-                    await db.db.tasks.put({
-                      ...(item.payload as unknown as Partial<Task>),
-                      id: newTask.id,
-                      _syncStatus: 'synced',
-                      _modifiedAt: Date.now(),
-                    } as db.LocalTask);
+                    // Store mapping and replace local record
+                    idMappings[item.localId!] = newTask.id;
+                    await db.replaceLocalWithSynced('tasks', item.localId!, newTask);
+                    // Update store with new ID
+                    const updatedTasks = tasks.map(t => 
+                      t.id === item.localId ? { ...t, ...newTask } : t
+                    );
+                    set({ tasks: updatedTasks });
+                  } else if (item.table === 'projects') {
+                    const newProject = await api.createProject(item.payload as Partial<Project>);
+                    idMappings[item.localId!] = newProject.id;
+                    await db.replaceLocalWithSynced('projects', item.localId!, newProject);
+                    const updatedProjects = projects.map(p => 
+                      p.id === item.localId ? { ...p, ...newProject } : p
+                    );
+                    set({ projects: updatedProjects });
+                  } else if (item.table === 'sections') {
+                    const newSection = await api.createSection(item.payload as Partial<Section>);
+                    idMappings[item.localId!] = newSection.id;
+                    await db.replaceLocalWithSynced('sections', item.localId!, newSection);
+                    const updatedSections = sections.map(s => 
+                      s.id === item.localId ? { ...s, ...newSection } : s
+                    );
+                    set({ sections: updatedSections });
                   }
                   break;
                   
                 case 'UPDATE':
+                  // Skip if this is for a local record that doesn't exist anymore
+                  if (recordId.startsWith('local_')) {
+                    console.warn(`Skipping UPDATE for unmapped local ID: ${recordId}`);
+                    break;
+                  }
                   if (item.table === 'tasks') {
-                    await api.updateTask(item.recordId, item.payload as Partial<Task>);
+                    await api.updateTask(recordId, item.payload as Partial<Task>);
+                    await db.markAsSynced('tasks', recordId);
+                  } else if (item.table === 'projects') {
+                    await api.updateProject(recordId, item.payload as Partial<Project>);
+                    await db.markAsSynced('projects', recordId);
+                  } else if (item.table === 'sections') {
+                    await api.updateSection(recordId, item.payload as Partial<Section>);
+                    await db.markAsSynced('sections', recordId);
                   }
                   break;
                   
                 case 'DELETE':
+                  // Skip if this is for a local record that was never synced
+                  if (recordId.startsWith('local_')) {
+                    console.warn(`Skipping DELETE for local ID: ${recordId}`);
+                    break;
+                  }
                   if (item.table === 'tasks') {
-                    await api.deleteTask(item.recordId);
+                    await api.deleteTask(recordId);
+                  } else if (item.table === 'projects') {
+                    await api.deleteProject(recordId);
+                  } else if (item.table === 'sections') {
+                    await api.deleteSection(recordId);
                   }
                   break;
               }
               
               // Remove from queue on success
               await db.removeSyncQueueItem(item.id!);
+              successCount++;
             } catch (error) {
               console.error(`Failed to sync item ${item.id}:`, error);
+              errorCount++;
               await db.updateSyncQueueItem(item.id!, {
                 attempts: item.attempts + 1,
                 lastError: error instanceof Error ? error.message : 'Unknown error',
               });
+              // Mark record as having sync error
+              if (item.table === 'tasks' || item.table === 'projects' || item.table === 'sections') {
+                await db.markSyncError(item.table, item.recordId);
+              }
             }
           }
           
           // Refresh data after sync
           await fetchAllData();
-          showToast('Sync complete');
+          
+          if (errorCount > 0) {
+            showToast(`Sync complete: ${successCount} synced, ${errorCount} failed`, 'warning');
+          } else if (successCount > 0) {
+            showToast(`Sync complete: ${successCount} changes synced`);
+          } else {
+            showToast('Everything is up to date');
+          }
           
         } catch (error) {
           console.error('Sync failed:', error);

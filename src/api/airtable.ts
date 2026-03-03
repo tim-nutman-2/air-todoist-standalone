@@ -402,6 +402,38 @@ export async function updateProject(projectId: string, updates: Partial<Project>
   return mapProjectFromAirtable(response);
 }
 
+export async function createProject(project: Partial<Project>): Promise<Project> {
+  const fields: Record<string, unknown> = {};
+  
+  if (project.name) fields[FIELDS.PROJECT_NAME] = project.name;
+  if (project.description) fields[FIELDS.PROJECT_DESCRIPTION] = project.description;
+  if (project.status) fields[FIELDS.PROJECT_STATUS] = project.status;
+  if (project.startDate) fields[FIELDS.PROJECT_START_DATE] = project.startDate;
+  if (project.targetDate) fields[FIELDS.PROJECT_TARGET_DATE] = project.targetDate;
+  
+  console.log(`[Create Project]:`, { project, fields });
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await rateLimitedFetch<{ id: string; fields: Record<string, any> }>(
+    TABLES.PROJECTS.id,
+    {
+      method: 'POST',
+      body: JSON.stringify({ fields }),
+    }
+  );
+  
+  return mapProjectFromAirtable(response);
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  console.log(`[Delete Project] ${projectId}`);
+  
+  await rateLimitedFetch(
+    `${TABLES.PROJECTS.id}/${projectId}`,
+    { method: 'DELETE' }
+  );
+}
+
 // ============================================================================
 // TAGS
 // ============================================================================
@@ -453,6 +485,57 @@ export async function fetchAllTags(): Promise<Tag[]> {
   
   console.log(`[Fetch Tags] Total tags: ${tags.length}`);
   return tags;
+}
+
+export async function createTag(tag: Partial<Tag>): Promise<Tag> {
+  const fields: Record<string, unknown> = {};
+  
+  if (tag.name) fields[FIELDS.TAG_NAME] = tag.name;
+  if (tag.type) fields[FIELDS.TAG_TYPE] = tag.type;
+  if (tag.description) fields[FIELDS.TAG_DESCRIPTION] = tag.description;
+  
+  console.log(`[Create Tag]:`, { tag, fields });
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await rateLimitedFetch<{ id: string; fields: Record<string, any> }>(
+    TABLES.TAGS.id,
+    {
+      method: 'POST',
+      body: JSON.stringify({ fields }),
+    }
+  );
+  
+  return mapTagFromAirtable(response);
+}
+
+export async function updateTag(tagId: string, updates: Partial<Tag>): Promise<Tag> {
+  const fields: Record<string, unknown> = {};
+  
+  if (updates.name !== undefined) fields[FIELDS.TAG_NAME] = updates.name;
+  if (updates.type !== undefined) fields[FIELDS.TAG_TYPE] = updates.type || null;
+  if (updates.description !== undefined) fields[FIELDS.TAG_DESCRIPTION] = updates.description;
+  
+  console.log(`[Update Tag] ${tagId}:`, { updates, fields });
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await rateLimitedFetch<{ id: string; fields: Record<string, any> }>(
+    `${TABLES.TAGS.id}/${tagId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ fields }),
+    }
+  );
+  
+  return mapTagFromAirtable(response);
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  console.log(`[Delete Tag] ${tagId}`);
+  
+  await rateLimitedFetch(
+    `${TABLES.TAGS.id}/${tagId}`,
+    { method: 'DELETE' }
+  );
 }
 
 // ============================================================================
@@ -525,6 +608,40 @@ export async function createSection(section: Partial<Section>): Promise<Section>
   );
   
   return mapSectionFromAirtable(response);
+}
+
+export async function updateSection(sectionId: string, updates: Partial<Section>): Promise<Section> {
+  const fields: Record<string, unknown> = {};
+  
+  if (updates.name !== undefined) fields[FIELDS.SECTION_NAME] = updates.name;
+  if (updates.order !== undefined) fields[FIELDS.SECTION_ORDER] = updates.order;
+  if (updates.color !== undefined) fields[FIELDS.SECTION_COLOR] = updates.color || null;
+  // Note: projectId usually shouldn't change, but support it if needed
+  if (updates.projectId !== undefined) {
+    fields[FIELDS.SECTION_PROJECT] = updates.projectId ? [updates.projectId] : null;
+  }
+  
+  console.log(`[Update Section] ${sectionId}:`, { updates, fields });
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await rateLimitedFetch<{ id: string; fields: Record<string, any> }>(
+    `${TABLES.SECTIONS.id}/${sectionId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ fields }),
+    }
+  );
+  
+  return mapSectionFromAirtable(response);
+}
+
+export async function deleteSection(sectionId: string): Promise<void> {
+  console.log(`[Delete Section] ${sectionId}`);
+  
+  await rateLimitedFetch(
+    `${TABLES.SECTIONS.id}/${sectionId}`,
+    { method: 'DELETE' }
+  );
 }
 
 // ============================================================================

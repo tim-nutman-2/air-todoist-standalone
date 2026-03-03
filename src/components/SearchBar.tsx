@@ -8,7 +8,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ onSelectTask }: SearchBarProps) {
-  const { tasks, projects, isDarkMode } = useStore();
+  const { tasks, projects, tags, isDarkMode } = useStore();
   
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -22,6 +22,8 @@ export function SearchBar({ onSelectTask }: SearchBarProps) {
     textSecondary: isDarkMode ? '#a0a0a0' : '#808080',
     primary: '#d1453b',
     resultBg: isDarkMode ? '#333333' : '#f5f5f5',
+    tagBg: isDarkMode ? 'rgba(139, 92, 246, 0.2)' : '#ede9fe',
+    tagText: isDarkMode ? '#a78bfa' : '#7c3aed',
   };
   
   // Close on click outside
@@ -35,23 +37,48 @@ export function SearchBar({ onSelectTask }: SearchBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Filter tasks based on query
+  const getProjectName = (projectId: string | null) => {
+    if (!projectId) return null;
+    return projects.find(p => p.id === projectId)?.name;
+  };
+  
+  const getTaskTags = (taskTagIds: string[]) => {
+    return tags.filter(t => taskTagIds.includes(t.id));
+  };
+  
+  // Filter tasks based on query - now includes project name and tags
   const filteredTasks = query.trim()
-    ? tasks.filter(task => 
-        task.name.toLowerCase().includes(query.toLowerCase()) ||
-        task.notes?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 10)
+    ? tasks.filter(task => {
+        const q = query.toLowerCase();
+        
+        // Match task name
+        if (task.name.toLowerCase().includes(q)) return true;
+        
+        // Match task notes
+        if (task.notes?.toLowerCase().includes(q)) return true;
+        
+        // Match project name
+        const projectName = getProjectName(task.projectId);
+        if (projectName?.toLowerCase().includes(q)) return true;
+        
+        // Match any tag name
+        const taskTags = getTaskTags(task.tagIds);
+        if (taskTags.some(tag => tag.name.toLowerCase().includes(q))) return true;
+        
+        // Match status
+        if (task.status?.toLowerCase().includes(q)) return true;
+        
+        // Match priority
+        if (task.priority?.toLowerCase().includes(q)) return true;
+        
+        return false;
+      }).slice(0, 15)
     : [];
   
   const handleSelect = (task: Task) => {
     onSelectTask(task);
     setQuery('');
     setIsOpen(false);
-  };
-  
-  const getProjectName = (projectId: string | null) => {
-    if (!projectId) return null;
-    return projects.find(p => p.id === projectId)?.name;
   };
   
   return (
@@ -145,48 +172,70 @@ export function SearchBar({ onSelectTask }: SearchBarProps) {
               No tasks found
             </div>
           ) : (
-            filteredTasks.map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleSelect(task)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.resultBg}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <div style={{
-                  fontSize: 14,
-                  color: task.status === '✅ Done' ? colors.textSecondary : colors.text,
-                  textDecoration: task.status === '✅ Done' ? 'line-through' : 'none',
-                  marginBottom: 2,
-                }}>
-                  {task.name}
-                </div>
-                <div style={{
-                  fontSize: 12,
-                  color: colors.textSecondary,
-                  display: 'flex',
-                  gap: 8,
-                }}>
-                  {getProjectName(task.projectId) && (
-                    <span>{getProjectName(task.projectId)}</span>
-                  )}
-                  {task.dueDate && (
-                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                  )}
-                  {task.status && (
-                    <span>{task.status}</span>
-                  )}
-                </div>
-              </button>
-            ))
+            filteredTasks.map(task => {
+              const taskTags = getTaskTags(task.tagIds);
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => handleSelect(task)}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.resultBg}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <div style={{
+                    fontSize: 14,
+                    color: task.status === '✅ Done' ? colors.textSecondary : colors.text,
+                    textDecoration: task.status === '✅ Done' ? 'line-through' : 'none',
+                    marginBottom: 4,
+                  }}>
+                    {task.name}
+                  </div>
+                  <div style={{
+                    fontSize: 12,
+                    color: colors.textSecondary,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    alignItems: 'center',
+                  }}>
+                    {getProjectName(task.projectId) && (
+                      <span style={{ fontWeight: 500 }}>{getProjectName(task.projectId)}</span>
+                    )}
+                    {task.dueDate && (
+                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                    )}
+                    {task.status && task.status !== '📋 To Do' && task.status !== '📥 Inbox' && (
+                      <span>{task.status}</span>
+                    )}
+                    {taskTags.slice(0, 3).map(tag => (
+                      <span
+                        key={tag.id}
+                        style={{
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          backgroundColor: colors.tagBg,
+                          color: colors.tagText,
+                          fontSize: 11,
+                        }}
+                      >
+                        #{tag.name}
+                      </span>
+                    ))}
+                    {taskTags.length > 3 && (
+                      <span style={{ fontSize: 11 }}>+{taskTags.length - 3} more</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       )}

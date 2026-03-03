@@ -245,6 +245,257 @@ export async function deleteTaskLocally(taskId: string): Promise<void> {
 }
 
 // ============================================================================
+// PROJECT LOCAL CRUD OPERATIONS (Offline-first)
+// ============================================================================
+
+/**
+ * Create project locally (queued for sync)
+ */
+export async function createProjectLocally(project: Partial<Project>): Promise<LocalProject> {
+  const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const now = Date.now();
+  
+  const localProject: LocalProject = {
+    id: localId,
+    name: project.name || 'New Project',
+    status: project.status || 'Active',
+    description: project.description || '',
+    startDate: project.startDate || null,
+    targetDate: project.targetDate || null,
+    notes: project.notes || '',
+    taskIds: [],
+    _syncStatus: 'pending',
+    _modifiedAt: now,
+  };
+  
+  await db.projects.add(localProject);
+  
+  await addToSyncQueue({
+    type: 'CREATE',
+    table: 'projects',
+    recordId: localId,
+    localId,
+    payload: project,
+  });
+  
+  return localProject;
+}
+
+/**
+ * Update project locally (queued for sync)
+ */
+export async function updateProjectLocally(projectId: string, updates: Partial<Project>): Promise<void> {
+  const now = Date.now();
+  
+  await db.projects.update(projectId, {
+    ...updates,
+    _syncStatus: 'pending',
+    _modifiedAt: now,
+  });
+  
+  await addToSyncQueue({
+    type: 'UPDATE',
+    table: 'projects',
+    recordId: projectId,
+    payload: updates,
+  });
+}
+
+/**
+ * Delete project locally (queued for sync)
+ */
+export async function deleteProjectLocally(projectId: string): Promise<void> {
+  const project = await db.projects.get(projectId);
+  if (project && projectId.startsWith('local_') && project._syncStatus === 'pending') {
+    await db.projects.delete(projectId);
+    await db.syncQueue.where('localId').equals(projectId).delete();
+    return;
+  }
+  
+  await addToSyncQueue({
+    type: 'DELETE',
+    table: 'projects',
+    recordId: projectId,
+    payload: {},
+  });
+  
+  await db.projects.delete(projectId);
+}
+
+// ============================================================================
+// SECTION LOCAL CRUD OPERATIONS (Offline-first)
+// ============================================================================
+
+/**
+ * Create section locally (queued for sync)
+ */
+export async function createSectionLocally(section: Partial<Section>): Promise<LocalSection> {
+  const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const now = Date.now();
+  
+  const localSection: LocalSection = {
+    id: localId,
+    name: section.name || 'New Section',
+    projectId: section.projectId || null,
+    order: section.order || 0,
+    color: section.color || null,
+    _syncStatus: 'pending',
+    _modifiedAt: now,
+  };
+  
+  await db.sections.add(localSection);
+  
+  await addToSyncQueue({
+    type: 'CREATE',
+    table: 'sections',
+    recordId: localId,
+    localId,
+    payload: section,
+  });
+  
+  return localSection;
+}
+
+/**
+ * Update section locally (queued for sync)
+ */
+export async function updateSectionLocally(sectionId: string, updates: Partial<Section>): Promise<void> {
+  const now = Date.now();
+  
+  await db.sections.update(sectionId, {
+    ...updates,
+    _syncStatus: 'pending',
+    _modifiedAt: now,
+  });
+  
+  await addToSyncQueue({
+    type: 'UPDATE',
+    table: 'sections',
+    recordId: sectionId,
+    payload: updates,
+  });
+}
+
+/**
+ * Delete section locally (queued for sync)
+ */
+export async function deleteSectionLocally(sectionId: string): Promise<void> {
+  const section = await db.sections.get(sectionId);
+  if (section && sectionId.startsWith('local_') && section._syncStatus === 'pending') {
+    await db.sections.delete(sectionId);
+    await db.syncQueue.where('localId').equals(sectionId).delete();
+    return;
+  }
+  
+  await addToSyncQueue({
+    type: 'DELETE',
+    table: 'sections',
+    recordId: sectionId,
+    payload: {},
+  });
+  
+  await db.sections.delete(sectionId);
+}
+
+// ============================================================================
+// SYNC QUEUE ID REMAPPING
+// ============================================================================
+
+/**
+ * Update sync queue items to use real Airtable ID instead of local ID
+ * Called after a CREATE operation succeeds
+ */
+export async function remapSyncQueueIds(
+  table: 'tasks' | 'projects' | 'sections',
+  localId: string,
+  realId: string
+): Promise<void> {
+  const items = await db.syncQueue
+    .where('recordId')
+    .equals(localId)
+    .toArray();
+  
+  for (const item of items) {
+    if (item.id && item.table === table) {
+      await db.syncQueue.update(item.id, { recordId: realId });
+    }
+  }
+}
+
+/**
+ * Replace local record with synced version after CREATE succeeds
+ */
+export async function replaceLocalWithSynced(
+  table: 'tasks' | 'projects' | 'sections',
+  localId: string,
+  syncedRecord: Task | Project | Section
+): Promise<void> {
+  const now = Date.now();
+  
+  if (table === 'tasks') {
+    await db.tasks.delete(localId);
+    await db.tasks.put({
+      ...(syncedRecord as Task),
+      _syncStatus: 'synced',
+      _modifiedAt: now,
+    });
+  } else if (table === 'projects') {
+    await db.projects.delete(localId);
+    await db.projects.put({
+      ...(syncedRecord as Project),
+      _syncStatus: 'synced',
+      _modifiedAt: now,
+    });
+  } else if (table === 'sections') {
+    await db.sections.delete(localId);
+    await db.sections.put({
+      ...(syncedRecord as Section),
+      _syncStatus: 'synced',
+      _modifiedAt: now,
+    });
+  }
+  
+  // Update any remaining queue items that reference the local ID
+  await remapSyncQueueIds(table, localId, syncedRecord.id);
+}
+
+/**
+ * Mark a record as synced (after UPDATE succeeds)
+ */
+export async function markAsSynced(
+  table: 'tasks' | 'projects' | 'sections',
+  recordId: string
+): Promise<void> {
+  const now = Date.now();
+  
+  if (table === 'tasks') {
+    await db.tasks.update(recordId, { _syncStatus: 'synced', _modifiedAt: now });
+  } else if (table === 'projects') {
+    await db.projects.update(recordId, { _syncStatus: 'synced', _modifiedAt: now });
+  } else if (table === 'sections') {
+    await db.sections.update(recordId, { _syncStatus: 'synced', _modifiedAt: now });
+  }
+}
+
+/**
+ * Mark a record as having sync error
+ */
+export async function markSyncError(
+  table: 'tasks' | 'projects' | 'sections',
+  recordId: string
+): Promise<void> {
+  const now = Date.now();
+  
+  if (table === 'tasks') {
+    await db.tasks.update(recordId, { _syncStatus: 'error', _modifiedAt: now });
+  } else if (table === 'projects') {
+    await db.projects.update(recordId, { _syncStatus: 'error', _modifiedAt: now });
+  } else if (table === 'sections') {
+    await db.sections.update(recordId, { _syncStatus: 'error', _modifiedAt: now });
+  }
+}
+
+// ============================================================================
 // FILTERS (Local only - stored in IndexedDB)
 // ============================================================================
 

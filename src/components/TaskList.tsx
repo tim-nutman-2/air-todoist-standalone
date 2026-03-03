@@ -14,7 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CaretDown, CaretRight, Circle, Folder } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Circle, Folder, Pencil, Trash, DotsThreeVertical, Check, X } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { TaskItem } from './TaskItem';
 import { DraggableTaskItem } from './DraggableTaskItem';
@@ -48,8 +48,10 @@ export function TaskList({
   enableDragDrop = true,
   projectId,
 }: TaskListProps) {
-  const { showCompleted, projects, sections, isDarkMode, updateTask } = useStore();
+  const { showCompleted, projects, sections, isDarkMode, updateTask, updateSection, deleteSection, showConfirm } = useStore();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionName, setEditingSectionName] = useState('');
   
   // Drag and drop sensors
   const sensors = useSensors(
@@ -313,17 +315,48 @@ export function TaskList({
     );
   };
   
+  const startEditingSection = (sectionId: string, name: string) => {
+    setEditingSectionId(sectionId);
+    setEditingSectionName(name);
+  };
+  
+  const saveSection = async (sectionId: string) => {
+    if (editingSectionName.trim()) {
+      await updateSection(sectionId, { name: editingSectionName.trim() });
+    }
+    setEditingSectionId(null);
+    setEditingSectionName('');
+  };
+  
+  const cancelEditingSection = () => {
+    setEditingSectionId(null);
+    setEditingSectionName('');
+  };
+  
+  const handleDeleteSection = (sectionId: string, sectionName: string) => {
+    showConfirm({
+      title: 'Delete Section',
+      message: `Are you sure you want to delete "${sectionName}"? Tasks in this section will not be deleted but will be moved to "No section".`,
+      type: 'delete',
+      onConfirm: async () => {
+        await deleteSection(sectionId);
+      },
+    });
+  };
+  
   const content = (
     <div>
       {groupedTasks.map((group) => {
         const isCollapsed = collapsedGroups.has(group.key);
         const showProjectBadge = showProject && groupBy !== 'project';
         
+        const isSection = groupBy === 'section' && sections.some(s => s.id === group.key);
+        const isEditingThisSection = isSection && editingSectionId === group.key;
+        
         return (
           <div key={group.key}>
             {group.title && (
-              <button
-                onClick={() => toggleGroup(group.key)}
+              <div
                 style={{
                   width: '100%',
                   position: 'sticky',
@@ -334,29 +367,66 @@ export function TaskList({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  border: 'none',
                   borderBottom: `1px solid ${colors.border}`,
-                  cursor: 'pointer',
-                  textAlign: 'left',
                 }}
               >
-                {isCollapsed ? (
-                  <CaretRight size={14} style={{ color: colors.textSecondary }} />
-                ) : (
-                  <CaretDown size={14} style={{ color: colors.textSecondary }} />
-                )}
+                <button
+                  onClick={() => toggleGroup(group.key)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {isCollapsed ? (
+                    <CaretRight size={14} style={{ color: colors.textSecondary }} />
+                  ) : (
+                    <CaretDown size={14} style={{ color: colors.textSecondary }} />
+                  )}
+                </button>
                 {group.icon}
                 {group.color && !group.icon && (
                   <Circle size={10} weight="fill" style={{ color: group.color }} />
                 )}
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: group.color || colors.text,
-                  flex: 1,
-                }}>
-                  {group.title}
-                </span>
+                {isEditingThisSection ? (
+                  <input
+                    type="text"
+                    value={editingSectionName}
+                    onChange={(e) => setEditingSectionName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveSection(group.key);
+                      if (e.key === 'Escape') cancelEditingSection();
+                    }}
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      padding: '4px 8px',
+                      border: `1px solid ${isDarkMode ? '#555' : '#ccc'}`,
+                      borderRadius: 4,
+                      backgroundColor: isDarkMode ? '#333' : '#fff',
+                      color: colors.text,
+                      outline: 'none',
+                    }}
+                  />
+                ) : (
+                  <span
+                    onClick={() => toggleGroup(group.key)}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: group.color || colors.text,
+                      flex: 1,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {group.title}
+                  </span>
+                )}
                 <span style={{
                   fontSize: 12,
                   padding: '2px 8px',
@@ -366,7 +436,77 @@ export function TaskList({
                 }}>
                   {group.tasks.length}
                 </span>
-              </button>
+                {isSection && !isEditingThisSection && (
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingSection(group.key, group.title || '');
+                      }}
+                      style={{
+                        padding: 4,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: colors.textSecondary,
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                      }}
+                      title="Edit section"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSection(group.key, group.title || '');
+                      }}
+                      style={{
+                        padding: 4,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: '#e74c3c',
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                      }}
+                      title="Delete section"
+                    >
+                      <Trash size={14} />
+                    </button>
+                  </div>
+                )}
+                {isEditingThisSection && (
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    <button
+                      onClick={() => saveSection(group.key)}
+                      style={{
+                        padding: 4,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: '#22c55e',
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                      }}
+                      title="Save"
+                    >
+                      <Check size={14} weight="bold" />
+                    </button>
+                    <button
+                      onClick={cancelEditingSection}
+                      style={{
+                        padding: 4,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: colors.textSecondary,
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                      }}
+                      title="Cancel"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             {!isCollapsed && (
               enableDragDrop ? (

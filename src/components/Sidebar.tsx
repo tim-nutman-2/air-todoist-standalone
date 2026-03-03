@@ -26,10 +26,14 @@ import {
   CaretDown,
   CaretRight,
   DotsSixVertical,
+  Plus,
+  GearSix,
 } from '@phosphor-icons/react';
 import { useStore } from '../store';
 import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, TAG_COLORS, STORAGE_KEYS } from '../utils/constants';
 import type { ViewType, Project, Tag as TagType, Filter } from '../types';
+import { AddProjectModal } from './AddProjectModal';
+import { TagManagementModal } from './TagManagementModal';
 
 // Storage keys for sidebar order preferences
 const ORDER_KEYS = {
@@ -99,6 +103,8 @@ export function Sidebar() {
   const [tagsExpanded, setTagsExpanded] = useState(true);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [isResizing, setIsResizing] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showTagManagementModal, setShowTagManagementModal] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   
   // Order state
@@ -389,27 +395,45 @@ export function Sidebar() {
         
         {/* Projects Section */}
         <div style={{ padding: '0 8px', marginBottom: 16 }}>
-          <button
-            onClick={() => setProjectsExpanded(!projectsExpanded)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: colors.textSecondary,
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              cursor: 'pointer',
-            }}
-          >
-            {projectsExpanded ? <CaretDown size={12} /> : <CaretRight size={12} />}
-            Projects
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button
+              onClick={() => setProjectsExpanded(!projectsExpanded)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 12px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: colors.textSecondary,
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                cursor: 'pointer',
+              }}
+            >
+              {projectsExpanded ? <CaretDown size={12} /> : <CaretRight size={12} />}
+              Projects
+            </button>
+            <button
+              onClick={() => setShowAddProjectModal(true)}
+              style={{
+                padding: '4px 8px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Add project"
+            >
+              <Plus size={14} weight="bold" />
+            </button>
+          </div>
           {projectsExpanded && (
             <DndContext
               sensors={sensors}
@@ -448,27 +472,45 @@ export function Sidebar() {
         
         {/* Tags Section */}
         <div style={{ padding: '0 8px', marginBottom: 16 }}>
-          <button
-            onClick={() => setTagsExpanded(!tagsExpanded)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: colors.textSecondary,
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              cursor: 'pointer',
-            }}
-          >
-            {tagsExpanded ? <CaretDown size={12} /> : <CaretRight size={12} />}
-            Tags
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button
+              onClick={() => setTagsExpanded(!tagsExpanded)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 12px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: colors.textSecondary,
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                cursor: 'pointer',
+              }}
+            >
+              {tagsExpanded ? <CaretDown size={12} /> : <CaretRight size={12} />}
+              Tags
+            </button>
+            <button
+              onClick={() => setShowTagManagementModal(true)}
+              style={{
+                padding: '4px 8px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="Manage tags"
+            >
+              <GearSix size={14} />
+            </button>
+          </div>
           {tagsExpanded && (
             <DndContext
               sensors={sensors}
@@ -567,6 +609,16 @@ export function Sidebar() {
         onMouseLeave={(e) => {
           if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
         }}
+      />
+      
+      {/* Modals */}
+      <AddProjectModal
+        isOpen={showAddProjectModal}
+        onClose={() => setShowAddProjectModal(false)}
+      />
+      <TagManagementModal
+        isOpen={showTagManagementModal}
+        onClose={() => setShowTagManagementModal(false)}
       />
     </div>
   );

@@ -19,6 +19,7 @@ import { SyncStatusIndicator } from './components/SyncStatusIndicator';
 import { OfflineBanner } from './components/OfflineBanner';
 import { ActiveTimerIndicator } from './components/ActiveTimerIndicator';
 import { getFormattedTodayDate, parseLocalDate } from './utils/dates';
+import { getFilteredTasks } from './utils/filters';
 import { Plus, Sun, Moon, FunnelSimple, Columns, List } from '@phosphor-icons/react';
 import type { Task, Filter, Project } from './types';
 
@@ -260,20 +261,9 @@ export default function App() {
       
       case 'filter': {
         const filter = filters.find(f => f.id === selectedFilterId);
-        const filterTasks = tasks.filter(t => {
-          if (t.status === '✅ Done' && !showCompleted) return false;
-          if (t.parentTaskId) return false;
-          
-          if (!filter?.criteria) return true;
-          const c = filter.criteria;
-          
-          if (c.status?.length && !c.status.includes(t.status || '')) return false;
-          if (c.priority?.length && !c.priority.includes(t.priority || '')) return false;
-          if (c.projectIds?.length && !c.projectIds.includes(t.projectId || '')) return false;
-          if (c.tagIds?.length && !t.tagIds.some(id => c.tagIds?.includes(id))) return false;
-          
-          return true;
-        });
+        const filterTasks = filter?.criteria
+          ? getFilteredTasks(tasks, filter.criteria, { showCompleted })
+          : tasks.filter(t => (t.status !== '✅ Done' || showCompleted) && !t.parentTaskId);
         
         return {
           title: filter?.name || 'Filter',
