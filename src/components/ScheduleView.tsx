@@ -42,6 +42,14 @@ function parseDurationToHours(durationStr: string | null): number {
   return 1;
 }
 
+// Format date as YYYY-MM-DD without timezone issues
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function ScheduleView({ onEditTask }: ScheduleViewProps) {
   const { tasks, showCompleted, isDarkMode } = useStore();
   
@@ -79,7 +87,7 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
     const result: Record<string, { scheduled: Task[]; unscheduled: Task[] }> = {};
     
     viewDates.forEach(date => {
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = formatDateKey(date);
       result[dateKey] = { scheduled: [], unscheduled: [] };
     });
     
@@ -92,7 +100,7 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
       
       if (!taskDate) return;
       
-      const dateKey = taskDate.toISOString().split('T')[0];
+      const dateKey = formatDateKey(taskDate);
       if (!result[dateKey]) return;
       
       if (task.scheduledTime) {
@@ -226,7 +234,7 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
       <div style={{ flex: 1, overflow: 'auto', display: 'flex' }}>
         {/* Time labels */}
         <div style={{ width: 60, flexShrink: 0, borderRight: `1px solid ${colors.border}` }}>
-          <div style={{ height: 80 }} /> {/* Header spacer */}
+          <div style={{ height: 40 }} /> {/* Date header spacer */}
           {TIME_SLOTS.map(slot => (
             <div
               key={slot.hour}
@@ -236,7 +244,10 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
                 fontSize: 11,
                 color: colors.textSecondary,
                 textAlign: 'right',
-                marginTop: -6,
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-end',
+                paddingTop: 2,
               }}
             >
               {slot.label}
@@ -247,7 +258,7 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
         {/* Day columns */}
         <div style={{ flex: 1, display: 'flex', minWidth: 0 }}>
           {viewDates.map(date => {
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = formatDateKey(date);
             const { dayName, dayNum, isToday } = formatDateHeader(date);
             const dayTasks = tasksByDate[dateKey] || { scheduled: [], unscheduled: [] };
             
@@ -258,11 +269,14 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
                   flex: 1,
                   minWidth: 120,
                   borderRight: `1px solid ${colors.border}`,
+                  display: 'flex',
+                  flexDirection: 'column',
                 }}
               >
                 {/* Date header */}
                 <div style={{
                   height: 40,
+                  flexShrink: 0,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -278,34 +292,9 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
                   }}>{dayNum}</span>
                 </div>
                 
-                {/* Unscheduled tasks */}
-                {dayTasks.unscheduled.length > 0 && (
-                  <div style={{
-                    padding: 4,
-                    backgroundColor: colors.timelineBg,
-                    borderBottom: `1px solid ${colors.border}`,
-                    minHeight: 40,
-                  }}>
-                    {dayTasks.unscheduled.slice(0, 3).map(task => (
-                      <ScheduleTaskCard
-                        key={task.id}
-                        task={task}
-                        colors={colors}
-                        isDarkMode={isDarkMode}
-                        onClick={() => onEditTask(task)}
-                        compact
-                      />
-                    ))}
-                    {dayTasks.unscheduled.length > 3 && (
-                      <div style={{ fontSize: 11, color: colors.textSecondary, padding: 4, textAlign: 'center' }}>
-                        +{dayTasks.unscheduled.length - 3} more
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Time grid */}
-                <div style={{ position: 'relative' }}>
+                {/* Time grid - contains both scheduled and unscheduled tasks */}
+                <div style={{ position: 'relative', flex: 1 }}>
+                  {/* Time slot grid lines */}
                   {TIME_SLOTS.map(slot => (
                     <div
                       key={slot.hour}
@@ -315,6 +304,39 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
                       }}
                     />
                   ))}
+                  
+                  {/* Unscheduled tasks - shown at top of grid */}
+                  {dayTasks.unscheduled.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      padding: 4,
+                      backgroundColor: isDarkMode ? 'rgba(36, 36, 36, 0.95)' : 'rgba(250, 250, 250, 0.95)',
+                      borderBottom: `1px solid ${colors.border}`,
+                      zIndex: 5,
+                    }}>
+                      <div style={{ fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: 500 }}>
+                        Unscheduled
+                      </div>
+                      {dayTasks.unscheduled.slice(0, 3).map(task => (
+                        <ScheduleTaskCard
+                          key={task.id}
+                          task={task}
+                          colors={colors}
+                          isDarkMode={isDarkMode}
+                          onClick={() => onEditTask(task)}
+                          compact
+                        />
+                      ))}
+                      {dayTasks.unscheduled.length > 3 && (
+                        <div style={{ fontSize: 11, color: colors.textSecondary, padding: 4, textAlign: 'center' }}>
+                          +{dayTasks.unscheduled.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Scheduled tasks */}
                   {dayTasks.scheduled.map(task => {
