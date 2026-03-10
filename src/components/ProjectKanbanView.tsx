@@ -367,7 +367,6 @@ function KanbanCard({ task, colors, isDarkMode, onClick, isDragging }: KanbanCar
         borderRadius: 8,
         cursor: isDragging ? 'grabbing' : 'pointer',
         boxShadow: isDragging ? '0 8px 16px rgba(0,0,0,0.15)' : 'none',
-        borderLeft: isTopPriority ? '3px solid #d1453b' : `1px solid ${colors.cardBorder}`,
       }}
     >
       {/* Task name */}

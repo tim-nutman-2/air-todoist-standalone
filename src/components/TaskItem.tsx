@@ -215,22 +215,6 @@ export function TaskItem({ task, level = 0, showProject = true, onEditTask, onAd
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Priority indicator */}
-        {priorityConfig && !isCompleted && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 3,
-              height: 24,
-              backgroundColor: priorityConfig.color,
-              borderRadius: '0 2px 2px 0',
-            }}
-          />
-        )}
-        
         {/* Expand/collapse for subtasks */}
         {hasSubtasks ? (
           <button
