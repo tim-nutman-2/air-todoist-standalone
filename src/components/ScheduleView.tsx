@@ -18,16 +18,17 @@ const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => {
   };
 });
 
-// Parse scheduled time to hour
-function parseTimeToHour(timeStr: string | null): number | null {
+// Parse scheduled time to decimal hours (e.g., 9:30 AM = 9.5)
+function parseTimeToDecimalHours(timeStr: string | null): number | null {
   if (!timeStr) return null;
   const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!match) return null;
   let hour = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
   const isPM = match[3].toUpperCase() === 'PM';
   if (isPM && hour !== 12) hour += 12;
   if (!isPM && hour === 12) hour = 0;
-  return hour;
+  return hour + (minutes / 60);
 }
 
 // Parse duration to hours
@@ -340,7 +341,7 @@ export function ScheduleView({ onEditTask }: ScheduleViewProps) {
                   
                   {/* Scheduled tasks */}
                   {dayTasks.scheduled.map(task => {
-                    const startHour = parseTimeToHour(task.scheduledTime);
+                    const startHour = parseTimeToDecimalHours(task.scheduledTime);
                     if (startHour === null || startHour < 6) return null;
                     
                     const duration = parseDurationToHours(task.duration);
