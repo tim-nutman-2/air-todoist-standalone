@@ -1,11 +1,13 @@
-import { app, BrowserWindow, shell, ipcMain, Tray, Menu, nativeImage, globalShortcut, Notification, NativeImage } from 'electron';
-import path from 'path';
+"use strict";
+
+const { app, BrowserWindow, shell, ipcMain, Tray, Menu, nativeImage, globalShortcut, Notification } = require('electron');
+const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development';
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 
-let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
+let mainWindow = null;
+let tray = null;
 let isQuitting = false;
 
 function createWindow() {
@@ -25,7 +27,6 @@ function createWindow() {
     },
   });
 
-  // Load the app
   if (isDev) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
@@ -33,7 +34,6 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Open external links in browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -43,7 +43,6 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Hide instead of close when clicking X (macOS behavior)
   mainWindow.on('close', (event) => {
     if (process.platform === 'darwin' && !isQuitting) {
       event.preventDefault();
@@ -53,21 +52,18 @@ function createWindow() {
 }
 
 function createTray() {
-  // Create a simple tray icon (you can replace with a proper icon later)
   const iconPath = path.join(__dirname, '../assets/tray-icon.png');
-  let trayIcon: NativeImage;
-  
+  let trayIcon;
+
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
     if (trayIcon.isEmpty()) {
-      // Fallback: create a simple colored icon
       trayIcon = nativeImage.createEmpty();
     }
   } catch {
     trayIcon = nativeImage.createEmpty();
   }
 
-  // On macOS, use template image for proper dark/light mode support
   if (process.platform === 'darwin') {
     trayIcon = trayIcon.resize({ width: 16, height: 16 });
     trayIcon.setTemplateImage(true);
@@ -124,14 +120,12 @@ function createTray() {
 }
 
 function registerGlobalShortcuts() {
-  // Quick add task: Cmd/Ctrl + Shift + A
   globalShortcut.register('CommandOrControl+Shift+A', () => {
     mainWindow?.show();
     mainWindow?.focus();
     mainWindow?.webContents.send('quick-add-task');
   });
 
-  // Toggle window: Cmd/Ctrl + Shift + T
   globalShortcut.register('CommandOrControl+Shift+T', () => {
     if (mainWindow?.isVisible()) {
       mainWindow.hide();
@@ -142,8 +136,7 @@ function registerGlobalShortcuts() {
   });
 }
 
-// IPC Handlers
-ipcMain.handle('show-notification', (_, { title, body }: { title: string; body: string }) => {
+ipcMain.handle('show-notification', (_, { title, body }) => {
   if (Notification.isSupported()) {
     new Notification({ title, body }).show();
   }
@@ -155,7 +148,6 @@ ipcMain.handle('minimize-to-tray', () => {
   mainWindow?.hide();
 });
 
-// App lifecycle
 app.whenReady().then(() => {
   createWindow();
   createTray();
